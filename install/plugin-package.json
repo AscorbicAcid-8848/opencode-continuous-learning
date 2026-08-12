@@ -1,0 +1,12 @@
+{
+  "name": "opencode-continuous-learning-local",
+  "version": "0.4.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "opencode": ">=1.18.15"
+  },
+  "exports": {
+    "./tui": "./tui.ts"
+  }
+}

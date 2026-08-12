@@ -1,0 +1,31 @@
+{
+  "name": "opencode-continuous-learning",
+  "version": "0.4.0",
+  "private": true,
+  "type": "module",
+  "description": "Standalone persistent learning plugin for OpenCode",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AscorbicAcid-8848/opencode-continuous-learning.git"
+  },
+  "homepage": "https://github.com/AscorbicAcid-8848/opencode-continuous-learning#readme",
+  "bugs": {
+    "url": "https://github.com/AscorbicAcid-8848/opencode-continuous-learning/issues"
+  },
+  "keywords": [
+    "opencode",
+    "continuous-learning",
+    "memory",
+    "agent",
+    "plugin"
+  ],
+  "scripts": {
+    "test": "bun test tests/*.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@opencode-ai/plugin": "1.18.15",
+    "@types/node": "^24.0.0",
+    "typescript": "^5.9.3"
+  }
+}

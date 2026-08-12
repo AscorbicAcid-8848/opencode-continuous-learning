@@ -1,0 +1,29 @@
+node_modules/
+dist/
+coverage/
+*.log
+*.tmp
+*.swp
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Never commit local OpenCode state, memories, credentials, or install backups.
+.env
+.env.*
+!.env.example
+continuous-learning-data/
+install-backups/
+MEMORY.md
+USER.md
+review-state.json
+
+# Office lock files and unrelated binary working documents.
+~$*
+*.doc
+*.docx
+*.xls
+*.xlsx
+*.ppt
+*.pptx
