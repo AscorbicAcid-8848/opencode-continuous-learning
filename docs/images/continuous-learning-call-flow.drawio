@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="drawio" version="30.0.4">
+  <diagram name="调用总览">
+    <mxGraphModel dx="1422" dy="794" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" value="OpenCode Continuous Learning：从加载、注入、复盘到落盘" style="text;html=1;align=center;verticalAlign=middle;fontSize=22;fontStyle=1;fontColor=#1f2937;" vertex="1" parent="1">
+          <mxGeometry x="350" y="20" width="720" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="loader" value="OpenCode&#xa;插件加载器" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="100" width="180" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="user" value="用户与前台 Agent" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="300" width="180" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="entry" value="install/continuous-learning.ts&#xa;自动发现桥接入口" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="290" y="90" width="230" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="tui" value="src/tui.ts&#xa;/learning-settings 面板" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="290" y="250" width="230" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="plugin" value="src/plugin.ts&#xa;Hooks、工具与复盘编排" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="290" y="430" width="230" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="system" value="system.transform&#xa;按会话注入记忆快照" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="600" y="90" width="230" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="tools" value="learning_memory / skill&#xa;status / mode" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="600" y="250" width="230" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="idle" value="session.idle&#xa;检查阈值与并发限制" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="600" y="430" width="230" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="review" value="隔离复盘子会话&#xa;仅开放三个学习工具" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="600" y="590" width="230" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="core" value="src/core.ts / LearningStore&#xa;校验、锁、原子写与作用域" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="910" y="250" width="250" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="config" value="config.json&#xa;14 项运行设置" style="shape=cylinder3;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="1250" y="80" width="190" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="memory" value="USER.md / MEMORY.md&#xa;项目 MEMORY.md" style="shape=cylinder3;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="1250" y="240" width="190" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="skills" value="skills/*/SKILL.md&#xa;skill-provenance" style="shape=cylinder3;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="1250" y="400" width="190" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="state" value="review-state.json&#xa;会话复盘检查点" style="shape=cylinder3;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="1250" y="570" width="190" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="legend" value="图例" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#9ca3af;verticalAlign=top;fontStyle=1;align=left;spacingLeft=10;" vertex="1" parent="1">
+          <mxGeometry x="40" y="720" width="980" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-runtime" value="OpenCode 运行时" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;" vertex="1" parent="legend">
+          <mxGeometry x="20" y="30" width="150" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-plugin" value="插件源码" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=12;" vertex="1" parent="legend">
+          <mxGeometry x="190" y="30" width="150" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-hook" value="Hook 与工具" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=12;" vertex="1" parent="legend">
+          <mxGeometry x="360" y="30" width="150" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-core" value="核心存储层" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;" vertex="1" parent="legend">
+          <mxGeometry x="530" y="30" width="150" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-review" value="复盘检查与子会话" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;" vertex="1" parent="legend">
+          <mxGeometry x="700" y="30" width="160" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-disk" value="磁盘数据" style="shape=cylinder3;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=12;" vertex="1" parent="legend">
+          <mxGeometry x="880" y="25" width="80" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="e1" value="加载" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.35;entryX=0;entryY=0.35;" edge="1" parent="1" source="loader" target="entry">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" value="注册 TUI 包" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.7;entryX=0;entryY=0.5;" edge="1" parent="1" source="loader" target="tui">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="250" y="150" /><mxPoint x="250" y="290" /></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="e3" value="default export" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="entry" target="plugin">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="550" y="200" /><mxPoint x="550" y="390" /><mxPoint x="405" y="390" /></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="e4" value="打开面板" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.25;entryX=0;entryY=0.25;" edge="1" parent="1" source="user" target="tui">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e5" value="原子更新" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=0;entryX=0;entryY=0.5;" edge="1" parent="1" source="tui" target="config">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="405" y="210" /><mxPoint x="1190" y="210" /><mxPoint x="1190" y="125" /></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="e6" value="热重载" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;exitX=0;exitY=0.8;entryX=1;entryY=0.2;" edge="1" parent="1" source="config" target="plugin">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="1190" y="150" /><mxPoint x="1190" y="380" /><mxPoint x="550" y="380" /><mxPoint x="550" y="445" /></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="e7" value="注册 Hook" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.2;entryX=0;entryY=0.5;" edge="1" parent="1" source="plugin" target="system">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="560" y="445" /><mxPoint x="560" y="130" /></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="e8" value="系统提示" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;exitX=0;exitY=0.5;entryX=1;entryY=0.25;" edge="1" parent="1" source="system" target="user">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="560" y="130" /><mxPoint x="560" y="210" /><mxPoint x="250" y="210" /><mxPoint x="250" y="318" /></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="e9" value="前台调用" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.75;entryX=0;entryY=0.6;" edge="1" parent="1" source="user" target="tools">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="250" y="352" /><mxPoint x="560" y="352" /><mxPoint x="560" y="298" /></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="e10" value="注册工具" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.45;entryX=0;entryY=0.85;" edge="1" parent="1" source="plugin" target="tools">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="560" y="466" /><mxPoint x="560" y="318" /></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="e11" value="调用存储层" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="tools" target="core">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e12" value="监听" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.8;entryX=0;entryY=0.5;" edge="1" parent="1" source="plugin" target="idle">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e13" value="达到阈值" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="idle" target="review">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e14" value="受限调用" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;exitX=0;exitY=0.5;entryX=0.25;entryY=1;" edge="1" parent="1" source="review" target="tools">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="560" y="630" /><mxPoint x="560" y="360" /><mxPoint x="658" y="360" /></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="e15" value="读取快照" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;exitX=0;exitY=0.25;entryX=1;entryY=0.7;" edge="1" parent="1" source="memory" target="core">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e16" value="事实" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.35;entryX=0;entryY=0.7;" edge="1" parent="1" source="core" target="memory">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e17" value="流程与所有权" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.65;entryX=0;entryY=0.5;" edge="1" parent="1" source="core" target="skills">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="1200" y="318" /><mxPoint x="1200" y="445" /></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="e18" value="检查点" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.75;exitY=1;entryX=0;entryY=0.5;" edge="1" parent="1" source="core" target="state">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="1100" y="540" /><mxPoint x="1200" y="540" /><mxPoint x="1200" y="615" /></Array></mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
