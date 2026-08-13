@@ -249,7 +249,7 @@ opencode-continuous-learning/
 ├── docs/
 │   ├── 用户手册.md
 │   ├── 实现原理.md
-│   └── 源码逐行学习指南.md
+│   └── 项目结构与调用关系教程.md
 ├── package.json
 └── tsconfig.json
 ```
@@ -278,4 +278,4 @@ fix(tui): keep resource limit brackets visible
 docs(readme): expand installation and configuration guide
 ```
 
-更完整的操作说明见[用户手册](docs/用户手册.md)，内部设计与安全边界见[实现原理](docs/实现原理.md)。如果希望从安装入口开始学习每段 TypeScript、函数调用和落盘实现，请阅读[源码逐行学习指南](docs/源码逐行学习指南.md)。
+更完整的操作说明见[用户手册](docs/用户手册.md)，内部设计与安全边界见[实现原理](docs/实现原理.md)。如果希望先理解程序入口、项目分层、对象、方法和完整调用链，再进入源码，请阅读[项目结构与调用关系教程](docs/项目结构与调用关系教程.md)。

@@ -1,7 +1,7 @@
 import { homedir } from "node:os"
 import { isAbsolute, join, parse, relative, resolve, sep } from "node:path"
 
-import { type Plugin, tool } from "@opencode-ai/plugin"
+import { type Plugin, tool } from "@opencode-ai/plugin" // sdk的包来源
 
 import {
   LearningStore,
