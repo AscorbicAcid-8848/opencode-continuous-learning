@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "sessions": {
+    "ses_01151c4dcffe6kzvtsWeop1vZV": {
+      "userTurns": 10,
+      "toolCalls": 205,
+      "lastAttemptAt": "2026-08-11T05:08:16.840Z",
+      "lastSuccessAt": "2026-08-11T05:08:16.840Z",
+      "lastMessageID": "msg_fef37e675001oRbsJvOG8InZda"
+    },
+    "ses_010c599b7ffeFpTXAlR3nmgi6f": {
+      "userTurns": 11,
+      "toolCalls": 116,
+      "lastAttemptAt": "2026-08-11T06:59:46.200Z",
+      "lastSuccessAt": "2026-08-11T06:34:50.152Z",
+      "lastMessageID": "msg_fef8722d2001As1DbcTtlEWh43"
+    },
+    "ses_005499fdfffe6BRnitbDL1kWuG": {
+      "userTurns": 1,
+      "toolCalls": 0,
+      "lastAttemptAt": "2026-08-13T10:41:33.260Z",
+      "lastSuccessAt": "2026-08-13T10:41:33.260Z",
+      "lastMessageID": "msg_ffab66628001h4JgMT2Wr0WZ7Q"
+    }
+  }
+}

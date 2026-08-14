@@ -10,14 +10,22 @@ import {
   rm,
 } from "node:fs/promises"
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path"
+import { homedir, hostname } from "node:os"
 
 export type MemoryTarget = "memory" | "user" | "project"
 export type SkillOwner = "user" | "agent"
+export type ExternalMemoryProviderName = "builtin" | "mem0" | "honcho"
 
 export interface LearningConfig {
   enabled: boolean
   memoryContextEnabled: boolean
   autoReview: boolean
+  sessionSearchMaxSessions: number
+  backgroundWriteApproval: boolean
+  externalMemoryProvider: ExternalMemoryProviderName
+  externalMemoryAutoSync: boolean
+  externalMemoryTopK: number
+  externalMemoryTimeoutMs: number
   memoryEveryTurns: number
   skillEveryToolCalls: number
   retryCooldownMinutes: number
@@ -35,6 +43,12 @@ export const DEFAULT_CONFIG: LearningConfig = {
   enabled: true,
   memoryContextEnabled: true,
   autoReview: true,
+  sessionSearchMaxSessions: 200,
+  backgroundWriteApproval: false,
+  externalMemoryProvider: "builtin",
+  externalMemoryAutoSync: true,
+  externalMemoryTopK: 5,
+  externalMemoryTimeoutMs: 3_000,
   memoryEveryTurns: 10,
   skillEveryToolCalls: 15,
   retryCooldownMinutes: 30,
@@ -53,11 +67,43 @@ export type LearningConfigKey = keyof LearningConfig
 export type LearningConfigFieldSpec =
   | { kind: "boolean"; default: boolean }
   | { kind: "integer"; default: number; minimum: number; maximum: number }
+  | { kind: "enum"; default: string; values: readonly string[] }
 
 export const CONFIG_FIELD_SPECS: Record<LearningConfigKey, LearningConfigFieldSpec> = {
   enabled: { kind: "boolean", default: DEFAULT_CONFIG.enabled },
   memoryContextEnabled: { kind: "boolean", default: DEFAULT_CONFIG.memoryContextEnabled },
   autoReview: { kind: "boolean", default: DEFAULT_CONFIG.autoReview },
+  sessionSearchMaxSessions: {
+    kind: "integer",
+    default: DEFAULT_CONFIG.sessionSearchMaxSessions,
+    minimum: 10,
+    maximum: 2_000,
+  },
+  backgroundWriteApproval: {
+    kind: "boolean",
+    default: DEFAULT_CONFIG.backgroundWriteApproval,
+  },
+  externalMemoryProvider: {
+    kind: "enum",
+    default: DEFAULT_CONFIG.externalMemoryProvider,
+    values: ["builtin", "mem0", "honcho"],
+  },
+  externalMemoryAutoSync: {
+    kind: "boolean",
+    default: DEFAULT_CONFIG.externalMemoryAutoSync,
+  },
+  externalMemoryTopK: {
+    kind: "integer",
+    default: DEFAULT_CONFIG.externalMemoryTopK,
+    minimum: 1,
+    maximum: 50,
+  },
+  externalMemoryTimeoutMs: {
+    kind: "integer",
+    default: DEFAULT_CONFIG.externalMemoryTimeoutMs,
+    minimum: 500,
+    maximum: 30_000,
+  },
   memoryEveryTurns: {
     kind: "integer",
     default: DEFAULT_CONFIG.memoryEveryTurns,
@@ -118,6 +164,12 @@ export const CONFIG_FIELD_SPECS: Record<LearningConfigKey, LearningConfigFieldSp
 }
 
 export const CONFIG_FIELD_KEYS = Object.keys(CONFIG_FIELD_SPECS) as LearningConfigKey[]
+
+const RETIRED_CONFIG_FIELDS = [
+  "sessionSearchEnabled",
+  "learningJourneyEnabled",
+  "skillDeleteEnabled",
+] as const
 
 export interface SkillProvenance {
   schemaVersion: 1
@@ -186,6 +238,14 @@ const THREAT_PATTERNS = [
   /[\u202a-\u202e\u2066-\u2069]/u,
 ]
 
+// The server stores its durable data under the OpenCode data directory
+// (typically `~/.local/share/opencode`). The TUI plugin API does not expose that
+// path, so both sides must derive the same root from the same helper instead of
+// the TUI accidentally using the XDG state directory.
+export function defaultDataRoot(): string {
+  return join(homedir(), ".local", "share", "opencode", "continuous-learning")
+}
+
 function nowISO(): string {
   return new Date().toISOString()
 }
@@ -204,6 +264,10 @@ function asInteger(
   return Math.min(maximum, Math.max(minimum, value))
 }
 
+function asEnum<T extends string>(value: unknown, fallback: T, values: readonly T[]): T {
+  return typeof value === "string" && values.includes(value as T) ? (value as T) : fallback
+}
+
 export function normalizeConfig(value: unknown): LearningConfig {
   const raw = value && typeof value === "object" ? (value as Record<string, unknown>) : {}
   return {
@@ -213,6 +277,37 @@ export function normalizeConfig(value: unknown): LearningConfig {
       DEFAULT_CONFIG.memoryContextEnabled,
     ),
     autoReview: asBoolean(raw.autoReview, DEFAULT_CONFIG.autoReview),
+    sessionSearchMaxSessions: asInteger(
+      raw.sessionSearchMaxSessions,
+      DEFAULT_CONFIG.sessionSearchMaxSessions,
+      10,
+      2_000,
+    ),
+    backgroundWriteApproval: asBoolean(
+      raw.backgroundWriteApproval,
+      DEFAULT_CONFIG.backgroundWriteApproval,
+    ),
+    externalMemoryProvider: asEnum(
+      raw.externalMemoryProvider,
+      DEFAULT_CONFIG.externalMemoryProvider,
+      ["builtin", "mem0", "honcho"],
+    ),
+    externalMemoryAutoSync: asBoolean(
+      raw.externalMemoryAutoSync,
+      DEFAULT_CONFIG.externalMemoryAutoSync,
+    ),
+    externalMemoryTopK: asInteger(
+      raw.externalMemoryTopK,
+      DEFAULT_CONFIG.externalMemoryTopK,
+      1,
+      50,
+    ),
+    externalMemoryTimeoutMs: asInteger(
+      raw.externalMemoryTimeoutMs,
+      DEFAULT_CONFIG.externalMemoryTimeoutMs,
+      500,
+      30_000,
+    ),
     memoryEveryTurns: asInteger(raw.memoryEveryTurns, DEFAULT_CONFIG.memoryEveryTurns, 1, 1_000),
     skillEveryToolCalls: asInteger(
       raw.skillEveryToolCalls,
@@ -285,7 +380,13 @@ export function validateConfigValue(
   const spec = CONFIG_FIELD_SPECS[key]
   if (spec.kind === "boolean") {
     if (typeof value !== "boolean") throw new Error(`${key} must be true or false`)
-    return value
+    return value as LearningConfig[LearningConfigKey]
+  }
+  if (spec.kind === "enum") {
+    if (typeof value !== "string" || !spec.values.includes(value)) {
+      throw new Error(`${key} must be one of: ${spec.values.join(", ")}`)
+    }
+    return value as LearningConfig[LearningConfigKey]
   }
   if (typeof value !== "number" || !Number.isInteger(value)) {
     throw new Error(`${key} must be an integer`)
@@ -312,6 +413,7 @@ export async function updateConfig(
       throw new Error(`Unable to update learning config ${path}: ${String(error)}`)
     }
   }
+  for (const key of RETIRED_CONFIG_FIELDS) delete raw[key]
   for (const [rawKey, value] of Object.entries(patch)) {
     if (!Object.prototype.hasOwnProperty.call(CONFIG_FIELD_SPECS, rawKey)) {
       throw new Error(`Unknown learning config field: ${rawKey}`)
@@ -321,6 +423,28 @@ export async function updateConfig(
   }
   await atomicWriteText(path, `${JSON.stringify(raw, null, 2)}\n`)
   return normalizeConfig(raw)
+}
+
+export async function pruneRetiredConfigFields(path: string): Promise<boolean> {
+  let raw: Record<string, unknown>
+  try {
+    const value = JSON.parse(await readFile(path, "utf8")) as unknown
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+      throw new Error("the root value must be a JSON object")
+    }
+    raw = value as Record<string, unknown>
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return false
+    throw new Error(`Unable to migrate learning config ${path}: ${String(error)}`)
+  }
+  let changed = false
+  for (const key of RETIRED_CONFIG_FIELDS) {
+    if (!Object.prototype.hasOwnProperty.call(raw, key)) continue
+    delete raw[key]
+    changed = true
+  }
+  if (changed) await atomicWriteText(path, `${JSON.stringify(raw, null, 2)}\n`)
+  return changed
 }
 
 export async function resetConfig(path: string): Promise<LearningConfig> {
@@ -377,18 +501,111 @@ async function sleep(milliseconds: number): Promise<void> {
   await new Promise<void>((resolve) => setTimeout(resolve, milliseconds))
 }
 
-async function withStorageLock<T>(root: string, action: () => Promise<T>): Promise<T> {
+interface StorageLockInfo {
+  owner: string
+  pid: number
+  host: string
+  createdAt: number
+}
+
+// A lease long enough to cover any single serialized write, but short enough that
+// a lock left behind by a crashed one-shot `opencode run` is reclaimed promptly.
+const STORAGE_LOCK_LEASE_MS = 30_000
+
+function isProcessAlive(pid: number): boolean {
+  if (!Number.isInteger(pid) || pid <= 0) return false
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch (error) {
+    // EPERM means the process exists but belongs to another user; treat it as alive.
+    return (error as NodeJS.ErrnoException).code === "EPERM"
+  }
+}
+
+function parseLockInfo(contents: string): StorageLockInfo | undefined {
+  const trimmed = contents.trim()
+  if (trimmed.startsWith("{")) {
+    try {
+      const value = JSON.parse(trimmed) as Record<string, unknown>
+      if (
+        typeof value.owner === "string" &&
+        typeof value.pid === "number" &&
+        typeof value.host === "string" &&
+        typeof value.createdAt === "number"
+      ) {
+        return {
+          owner: value.owner,
+          pid: value.pid,
+          host: value.host,
+          createdAt: value.createdAt,
+        }
+      }
+    } catch {
+      // Fall through to the legacy text format below.
+    }
+  }
+  // Legacy format: `<pid>:<uuid>\n<ISO timestamp>\n`.
+  const lines = contents.replace(/\r\n/gu, "\n").split("\n")
+  const owner = lines[0]?.trim()
+  if (!owner) return undefined
+  const pid = Number(/^(\d+):/u.exec(owner)?.[1] ?? Number.NaN)
+  const createdAt = Date.parse(lines[1] ?? "")
+  return {
+    owner,
+    pid,
+    host: "",
+    createdAt: Number.isFinite(createdAt) ? createdAt : 0,
+  }
+}
+
+function isStaleLock(info: StorageLockInfo, now: number, localHost: string): boolean {
+  if (info.host === localHost) return !isProcessAlive(info.pid)
+  if (info.host) return info.createdAt > 0 && now - info.createdAt >= STORAGE_LOCK_LEASE_MS
+  // Legacy locks carried no host. Trust the local PID when one is recorded;
+  // otherwise fall back to the creation-time lease.
+  if (Number.isInteger(info.pid) && info.pid > 0) return !isProcessAlive(info.pid)
+  return info.createdAt > 0 ? now - info.createdAt >= STORAGE_LOCK_LEASE_MS : true
+}
+
+async function readLockInfo(lockPath: string): Promise<StorageLockInfo | undefined> {
+  try {
+    return parseLockInfo(await readFile(lockPath, "utf8"))
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined
+    throw error
+  }
+}
+
+async function reclaimStaleLock(lockPath: string, observed: StorageLockInfo): Promise<boolean> {
+  const current = await readLockInfo(lockPath)
+  if (!current) return true
+  // Re-read before deleting: only remove the exact lock we observed, never a lock
+  // another process created in the meantime.
+  if (current.owner !== observed.owner || current.createdAt !== observed.createdAt) return false
+  await rm(lockPath, { force: true })
+  return true
+}
+
+export async function withStorageLock<T>(root: string, action: () => Promise<T>): Promise<T> {
   await mkdir(root, { recursive: true })
   const lockPath = join(root, ".write.lock")
   const deadline = Date.now() + 8_000
+  const localHost = hostname()
   const owner = `${process.pid}:${randomUUID()}`
+  const lockInfo: StorageLockInfo = {
+    owner,
+    pid: process.pid,
+    host: localHost,
+    createdAt: Date.now(),
+  }
   let handle: Awaited<ReturnType<typeof open>> | undefined
 
   while (!handle) {
     try {
       handle = await open(lockPath, "wx")
       try {
-        await handle.writeFile(`${owner}\n${nowISO()}\n`, "utf8")
+        await handle.writeFile(`${JSON.stringify(lockInfo)}\n`, "utf8")
         await handle.sync()
       } catch (error) {
         await handle.close().catch(() => undefined)
@@ -398,6 +615,10 @@ async function withStorageLock<T>(root: string, action: () => Promise<T>): Promi
       }
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error
+      const observed = await readLockInfo(lockPath)
+      if (observed && isStaleLock(observed, Date.now(), localHost)) {
+        if (await reclaimStaleLock(lockPath, observed)) continue
+      }
       if (Date.now() >= deadline) throw new Error("Persistent learning storage is busy")
       await sleep(40)
     }
@@ -409,7 +630,7 @@ async function withStorageLock<T>(root: string, action: () => Promise<T>): Promi
     await handle.close().catch(() => undefined)
     try {
       const contents = await readFile(lockPath, "utf8")
-      if (contents.startsWith(`${owner}\n`)) await rm(lockPath, { force: true })
+      if (parseLockInfo(contents)?.owner === owner) await rm(lockPath, { force: true })
     } catch {
       // A missing or externally replaced lock must not be removed blindly.
     }
@@ -567,6 +788,7 @@ export class LearningStore {
   readonly projectMemoryPath?: string
   readonly reviewStatePath: string
   readonly provenanceRoot: string
+  readonly skillArchiveRoot: string
 
   constructor(
     dataRoot: string,
@@ -592,6 +814,7 @@ export class LearningStore {
       : undefined
     this.reviewStatePath = join(this.dataRoot, "review-state.json")
     this.provenanceRoot = join(this.dataRoot, "skill-provenance")
+    this.skillArchiveRoot = join(this.skillsRoot, ".continuous-learning-archive")
   }
 
   async ensureLayout(): Promise<void> {
@@ -600,6 +823,7 @@ export class LearningStore {
       mkdir(this.skillsRoot, { recursive: true }),
       mkdir(this.provenanceRoot, { recursive: true }),
       mkdir(this.projectsRoot, { recursive: true }),
+      mkdir(this.skillArchiveRoot, { recursive: true }),
       this.projectMemoryPath ? mkdir(dirname(this.projectMemoryPath), { recursive: true }) : Promise.resolve(),
     ])
     await Promise.all([
@@ -607,6 +831,7 @@ export class LearningStore {
       assertPlainDirectory(this.skillsRoot, "skillsRoot"),
       assertPlainDirectory(this.provenanceRoot, "provenanceRoot"),
       assertPlainDirectory(this.projectsRoot, "projectsRoot"),
+      assertPlainDirectory(this.skillArchiveRoot, "skillArchiveRoot"),
       this.projectMemoryPath
         ? assertPlainDirectory(dirname(this.projectMemoryPath), "project memory directory")
         : Promise.resolve(),
@@ -850,6 +1075,61 @@ export class LearningStore {
       provenance.sourceSessionID = input.sourceSessionID ?? provenance.sourceSessionID
       await atomicWriteText(this.provenancePath(name), `${JSON.stringify(provenance, null, 2)}\n`)
       return { name, description, path, owner: provenance.owner, autoManaged: provenance.autoManaged }
+    })
+  }
+
+  async deleteSkill(input: {
+    name: string
+    origin: SkillOwner
+    sourceSessionID?: string
+    absorbedInto?: string
+  }): Promise<{ name: string; archived: true; archivePath: string; absorbedInto?: string }> {
+    const name = assertSkillName(input.name)
+    const absorbedInto = input.absorbedInto?.trim()
+    if (absorbedInto) {
+      const target = assertSkillName(absorbedInto)
+      if (target === name) throw new Error("absorbed_into cannot equal the deleted Skill")
+      await readFile(this.skillPath(target), "utf8")
+    }
+    return withStorageLock(this.dataRoot, async () => {
+      await assertPlainDirectory(this.skillsRoot, "skillsRoot")
+      const skillDirectory = this.skillDirectory(name)
+      await assertPlainDirectory(skillDirectory, `Skill directory ${name}`)
+      const current = await readFile(this.skillPath(name), "utf8")
+      const provenance = await this.trustedProvenance(name, current)
+      if (
+        input.origin === "agent" &&
+        (!provenance || provenance.owner !== "agent" || provenance.autoManaged !== true)
+      ) {
+        throw new Error(`Automatic review cannot delete user-owned Skill ${name}`)
+      }
+      const archiveName = `${name}-${Date.now()}-${randomUUID().slice(0, 8)}`
+      const archivePath = join(this.skillArchiveRoot, archiveName)
+      const metadataPath = join(skillDirectory, ".continuous-learning-archive.json")
+      await atomicWriteText(
+        metadataPath,
+        `${JSON.stringify(
+          {
+            schemaVersion: 1,
+            name,
+            archivedAt: nowISO(),
+            owner: provenance?.owner ?? "user",
+            sourceSessionID: input.sourceSessionID,
+            absorbedInto,
+            provenance,
+          },
+          null,
+          2,
+        )}\n`,
+      )
+      try {
+        await rename(skillDirectory, archivePath)
+      } catch (error) {
+        await rm(metadataPath, { force: true }).catch(() => undefined)
+        throw error
+      }
+      await rm(this.provenancePath(name), { force: true })
+      return { name, archived: true, archivePath, absorbedInto }
     })
   }
 

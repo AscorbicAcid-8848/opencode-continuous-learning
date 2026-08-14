@@ -1,0 +1,12 @@
+[0m
+> build · gpt-5.6-terra
+[0m
+我将按要求创建并读取 Skill，再尝试同名创建以确认所有权保护行为。
+[0m⚙ [0mlearning_skill {"action":"list"}
+[0m⚙ [0mlearning_skill {"action":"create","name":"cl-e2e-build","description":"CL_E2E_20260814 构建流程","content":"# 构建流程\n\n使用 pnpm install 后执行 pnpm build。"}
+[0m⚙ [0mlearning_skill {"action":"view","name":"cl-e2e-build"}
+[0m✗ [0mlearning_skill {"action":"create","name":"cl-e2e-build","description":"CL_E2E_20260814 构建流程","content":"# 构建流程\n\n使用 pnpm install 后执行 pnpm build。"} failed
+[91m[1mError: [0mSkill cl-e2e-build already exists; use update after reading it
+1. `create cl-e2e-build`：成功。`owner` 为 `user`，`provenance` 显示 `owner: user`、`autoManaged: false`，未被拒绝。
+2. `view cl-e2e-build`：成功。内容与请求一致，provenance 已记录创建来源及内容哈希。
+3. 再次 `create cl-e2e-build`：被拒绝，提示同名 Skill 已存在，需在读取后使用 `update`。所有权保护生效。

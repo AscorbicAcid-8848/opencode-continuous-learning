@@ -138,6 +138,10 @@ test("automatic review is isolated and advances its checkpoint only after succes
       learning_memory: "allow",
       learning_skill: "allow",
       learning_status: "allow",
+      session_search: "deny",
+      learning_pending: "deny",
+      learning_journey: "deny",
+      learning_external_memory: "deny",
       edit: "deny",
       bash: "deny",
       webfetch: "deny",
@@ -345,6 +349,258 @@ test("master switch immediately disables injection, reviews, and learning tools 
     assert.deepEqual(disabledAgainSystem.system, [])
     assert.equal((JSON.parse(await readFile(configPath, "utf8")) as { enabled: boolean }).enabled, false)
   } finally {
+    await rm(root, { recursive: true, force: true })
+  }
+})
+
+test("background approval stages automatic writes and foreground approval safely applies them", async () => {
+  const root = await mkdtemp(join(tmpdir(), "continuous-learning-approval-"))
+  const dataRoot = join(root, "data")
+  const skillsRoot = join(root, "skills")
+  const configPath = join(root, "config.json")
+  let hooks = undefined as Awaited<ReturnType<typeof plugin>> | undefined
+  let deleted = 0
+  const messages = [
+    {
+      info: {
+        id: "u1",
+        role: "user",
+        model: { providerID: "test-provider", modelID: "test-model" },
+      },
+      parts: [{ type: "text", text: "Remember that this project uses bun test" }],
+    },
+    {
+      info: { id: "a1", role: "assistant" },
+      parts: [{ type: "text", text: "Done" }],
+    },
+  ]
+  const client = {
+    app: { log: async () => ({ data: true }) },
+    tui: { showToast: async () => ({ data: true }) },
+    tool: {
+      ids: async () => ({ data: ["read", "learning_memory"] }),
+      list: async () => ({ data: [{ id: "read" }, { id: "learning_memory" }] }),
+    },
+    session: {
+      messages: async () => ({ data: messages }),
+      create: async () => ({ data: { id: "approval-review" } }),
+      prompt: async () => {
+        await hooks!.tool!.learning_memory.execute(
+          { action: "add", target: "project", content: "Use bun test for this project" },
+          {
+            sessionID: "approval-review",
+            messageID: "review-message",
+            agent: "continuous-learning-review",
+            directory: root,
+            worktree: root,
+            abort: new AbortController().signal,
+            metadata: () => undefined,
+            ask: async () => {
+              throw new Error("background writes must not ask inline")
+            },
+          },
+        )
+        return { data: { info: { time: { completed: Date.now() } } } }
+      },
+      delete: async () => {
+        deleted += 1
+        return { data: true }
+      },
+    },
+  }
+  const context = {
+    sessionID: "source-session",
+    messageID: "foreground-message",
+    agent: "build",
+    directory: root,
+    worktree: root,
+    abort: new AbortController().signal,
+    metadata: () => undefined,
+    ask: async () => undefined,
+  }
+
+  try {
+    hooks = await plugin(
+      { client: client as never, directory: root, worktree: root } as never,
+      {
+        configPath,
+        dataRoot,
+        skillsRoot,
+        memoryEveryTurns: 1,
+        skillEveryToolCalls: 100,
+        backgroundWriteApproval: true,
+        foregroundWriteApproval: false,
+        showNotifications: false,
+      },
+    )
+    await hooks.event!({
+      event: { type: "session.idle", properties: { sessionID: "source-session" } },
+    } as never)
+    await waitFor(() => deleted === 1)
+
+    const pending = JSON.parse(
+      toolText(await hooks.tool!.learning_pending.execute({ action: "list" }, context)),
+    ) as Array<{ id: string; payload: { kind: string } }>
+    assert.equal(pending.length, 1)
+    assert.equal(pending[0].payload.kind, "memory")
+
+    await hooks.tool!.learning_pending.execute(
+      { action: "approve", id: pending[0].id },
+      context,
+    )
+    const memory = JSON.parse(
+      toolText(
+        await hooks.tool!.learning_memory.execute(
+          { action: "view", target: "project" },
+          context,
+        ),
+      ),
+    ) as { entries: string[] }
+    assert.deepEqual(memory.entries, ["Use bun test for this project"])
+    assert.equal(
+      (JSON.parse(toolText(await hooks.tool!.learning_pending.execute({ action: "list" }, context))) as unknown[])
+        .length,
+      0,
+    )
+  } finally {
+    await hooks?.dispose?.()
+    await rm(root, { recursive: true, force: true })
+  }
+})
+
+test("dispose waits for an in-flight automatic review before closing", async () => {
+  const root = await mkdtemp(join(tmpdir(), "opencode-learning-dispose-"))
+  const dataRoot = join(root, "data")
+  const skillsRoot = join(root, "skills")
+  const configPath = join(root, "config.json")
+  let hooks = undefined as Awaited<ReturnType<typeof plugin>> | undefined
+  let releasePrompt: (() => void) | undefined
+  const messages = [
+    {
+      info: { id: "u1", role: "user", model: { providerID: "p", modelID: "m" } },
+      parts: [{ type: "text", text: "Remember to wait for dispose" }],
+    },
+    {
+      info: { id: "a1", role: "assistant" },
+      parts: [{ type: "text", text: "Done" }],
+    },
+  ]
+  const client = {
+    app: { log: async () => ({ data: true }) },
+    tui: { showToast: async () => ({ data: true }) },
+    tool: {
+      ids: async () => ({ data: [] }),
+      list: async () => ({ data: [] }),
+    },
+    session: {
+      get: async () => ({ data: { id: "source-session", directory: root, time: {} } }),
+      messages: async () => ({ data: messages }),
+      create: async () => ({ data: { id: "review-dispose" } }),
+      prompt: async () => {
+        await new Promise<void>((resolve) => {
+          releasePrompt = resolve
+        })
+        return { data: { info: { time: { completed: Date.now() } } } }
+      },
+      delete: async () => ({ data: true }),
+    },
+  }
+
+  try {
+    hooks = await plugin(
+      { client: client as never, directory: root, worktree: root } as never,
+      {
+        configPath,
+        dataRoot,
+        skillsRoot,
+        memoryEveryTurns: 1,
+        skillEveryToolCalls: 100,
+        maxConcurrentReviews: 1,
+        deleteReviewSessions: true,
+        showNotifications: false,
+      },
+    )
+    await hooks.event!({
+      event: { type: "session.idle", properties: { sessionID: "source-session" } },
+    } as never)
+    await waitFor(() => typeof releasePrompt === "function")
+
+    let disposeResolved = false
+    const disposePromise = hooks.dispose!().then(() => {
+      disposeResolved = true
+    })
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    assert.equal(disposeResolved, false)
+
+    releasePrompt!()
+    await disposePromise
+    assert.equal(disposeResolved, true)
+  } finally {
+    releasePrompt?.()
+    await rm(root, { recursive: true, force: true })
+  }
+})
+
+test("session_search backfills an OpenCode session and returns full-text matches", async () => {
+  const root = await mkdtemp(join(tmpdir(), "continuous-learning-session-search-"))
+  let hooks = undefined as Awaited<ReturnType<typeof plugin>> | undefined
+  const client = {
+    app: { log: async () => ({ data: true }) },
+    tui: { showToast: async () => ({ data: true }) },
+    session: {
+      list: async () => ({
+        data: [
+          {
+            id: "historical-session",
+            title: "Quartz regression",
+            directory: root,
+            time: { created: 1, updated: 2 },
+          },
+        ],
+      }),
+      messages: async () => ({
+        data: [
+          {
+            info: { id: "history-user", role: "user" },
+            parts: [{ type: "text", text: "Investigate the quartz scheduler regression" }],
+          },
+          {
+            info: { id: "history-assistant", role: "assistant" },
+            parts: [{ type: "text", text: "The quartz scheduler fix was verified" }],
+          },
+        ],
+      }),
+    },
+  }
+  const context = {
+    sessionID: "foreground-session",
+    messageID: "foreground-message",
+    agent: "build",
+    directory: root,
+    worktree: root,
+    abort: new AbortController().signal,
+    metadata: () => undefined,
+    ask: async () => undefined,
+  }
+
+  try {
+    hooks = await plugin(
+      { client: client as never, directory: root, worktree: root } as never,
+      {
+        configPath: join(root, "config.json"),
+        dataRoot: join(root, "data"),
+        skillsRoot: join(root, "skills"),
+        autoReview: false,
+        showNotifications: false,
+      },
+    )
+    const result = JSON.parse(
+      toolText(await hooks.tool!.session_search.execute({ query: "quartz" }, context)),
+    ) as { count: number; results: Array<{ session_id: string }> }
+    assert.equal(result.count, 1)
+    assert.equal(result.results[0].session_id, "historical-session")
+  } finally {
+    await hooks?.dispose?.()
     await rm(root, { recursive: true, force: true })
   }
 })

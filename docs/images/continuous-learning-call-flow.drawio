@@ -17,7 +17,7 @@
         <mxCell id="entry" value="install/continuous-learning.ts&#xa;自动发现桥接入口" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=13;" vertex="1" parent="1">
           <mxGeometry x="290" y="90" width="230" height="80" as="geometry" />
         </mxCell>
-        <mxCell id="tui" value="src/tui.ts&#xa;/learning-settings 面板" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=13;" vertex="1" parent="1">
+        <mxCell id="tui" value="src/tui.ts&#xa;设置 / 审批 / Journey" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=13;" vertex="1" parent="1">
           <mxGeometry x="290" y="250" width="230" height="80" as="geometry" />
         </mxCell>
         <mxCell id="plugin" value="src/plugin.ts&#xa;Hooks、工具与复盘编排" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=14;fontStyle=1;" vertex="1" parent="1">
@@ -26,7 +26,7 @@
         <mxCell id="system" value="system.transform&#xa;按会话注入记忆快照" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=13;" vertex="1" parent="1">
           <mxGeometry x="600" y="90" width="230" height="80" as="geometry" />
         </mxCell>
-        <mxCell id="tools" value="learning_memory / skill&#xa;status / mode" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=13;" vertex="1" parent="1">
+        <mxCell id="tools" value="8 个 learning / search 工具&#xa;Memory · Skill · 历史 · 审批" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=13;" vertex="1" parent="1">
           <mxGeometry x="600" y="250" width="230" height="80" as="geometry" />
         </mxCell>
         <mxCell id="idle" value="session.idle&#xa;检查阈值与并发限制" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=13;" vertex="1" parent="1">
@@ -35,19 +35,19 @@
         <mxCell id="review" value="隔离复盘子会话&#xa;仅开放三个学习工具" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=13;" vertex="1" parent="1">
           <mxGeometry x="600" y="590" width="230" height="80" as="geometry" />
         </mxCell>
-        <mxCell id="core" value="src/core.ts / LearningStore&#xa;校验、锁、原子写与作用域" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+        <mxCell id="core" value="core.ts + advanced.ts&#xa;存储、FTS5、审批、Journey、Provider" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=14;fontStyle=1;" vertex="1" parent="1">
           <mxGeometry x="910" y="250" width="250" height="90" as="geometry" />
         </mxCell>
-        <mxCell id="config" value="config.json&#xa;14 项运行设置" style="shape=cylinder3;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=13;" vertex="1" parent="1">
+        <mxCell id="config" value="config.json&#xa;20 项运行设置" style="shape=cylinder3;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=13;" vertex="1" parent="1">
           <mxGeometry x="1250" y="80" width="190" height="90" as="geometry" />
         </mxCell>
         <mxCell id="memory" value="USER.md / MEMORY.md&#xa;项目 MEMORY.md" style="shape=cylinder3;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=13;" vertex="1" parent="1">
           <mxGeometry x="1250" y="240" width="190" height="90" as="geometry" />
         </mxCell>
-        <mxCell id="skills" value="skills/*/SKILL.md&#xa;skill-provenance" style="shape=cylinder3;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=13;" vertex="1" parent="1">
+        <mxCell id="skills" value="SKILL.md / provenance&#xa;可恢复归档" style="shape=cylinder3;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=13;" vertex="1" parent="1">
           <mxGeometry x="1250" y="400" width="190" height="90" as="geometry" />
         </mxCell>
-        <mxCell id="state" value="review-state.json&#xa;会话复盘检查点" style="shape=cylinder3;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=13;" vertex="1" parent="1">
+        <mxCell id="state" value="复盘 / Journey / pending&#xa;会话 SQLite 索引" style="shape=cylinder3;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=13;" vertex="1" parent="1">
           <mxGeometry x="1250" y="570" width="190" height="90" as="geometry" />
         </mxCell>
         <mxCell id="legend" value="图例" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#9ca3af;verticalAlign=top;fontStyle=1;align=left;spacingLeft=10;" vertex="1" parent="1">

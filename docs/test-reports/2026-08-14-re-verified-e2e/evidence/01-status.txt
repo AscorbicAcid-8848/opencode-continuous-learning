@@ -1,0 +1,11 @@
+[0m
+> build · gpt-5.6-terra
+[0m
+[0m⚙ [0mlearning_status Unknown
+配置字段总数：20
+
+- `dataRoot`：`/tmp/continuous-learning-e2e-fixed/home/.local/share/opencode/continuous-learning`
+- `skillsRoot`：`/tmp/continuous-learning-e2e-fixed/home/.config/opencode/skills`
+- memory：0 条
+- skill：0 条
+- pending：0 条

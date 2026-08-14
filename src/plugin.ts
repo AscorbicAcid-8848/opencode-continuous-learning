@@ -6,14 +6,25 @@ import { type Plugin, tool } from "@opencode-ai/plugin" // sdk的包来源
 import {
   LearningStore,
   countTranscript,
+  defaultDataRoot,
   isReviewDue,
   loadConfig,
   normalizeConfig,
+  pruneRetiredConfigFields,
   renderTranscript,
   setConfigEnabled,
   type MemoryTarget,
   type TranscriptItem,
 } from "./core.ts"
+import {
+  ExternalMemoryAdapter,
+  LearningJourneyStore,
+  PendingWriteStore,
+  SessionSearchStore,
+  applyPendingRecord,
+  type PendingPayload,
+  type SessionMetadata,
+} from "./advanced.ts"
 
 type UnknownRecord = Record<string, unknown>
 
@@ -34,6 +45,10 @@ function errorText(error: unknown): string {
   } catch {
     return String(error)
   }
+}
+
+async function sleep(milliseconds: number): Promise<void> {
+  await new Promise<void>((resolve) => setTimeout(resolve, milliseconds))
 }
 
 export function selectProjectRoot(directory: string, worktree?: string): string {
@@ -133,6 +148,44 @@ function lastAssistantSucceeded(messages: unknown[]): boolean {
   return false
 }
 
+function sessionMetadata(
+  value: unknown,
+  fallback: { id: string; directory: string; projectRoot: string },
+): SessionMetadata {
+  const item = value && typeof value === "object" ? (value as UnknownRecord) : {}
+  const time = item.time && typeof item.time === "object" ? (item.time as UnknownRecord) : {}
+  return {
+    id: typeof item.id === "string" ? item.id : fallback.id,
+    title: typeof item.title === "string" ? item.title : fallback.id,
+    directory: typeof item.directory === "string" ? item.directory : fallback.directory,
+    projectRoot: fallback.projectRoot,
+    parentID: typeof item.parentID === "string" ? item.parentID : undefined,
+    createdAt: typeof time.created === "number" ? time.created : Date.now(),
+    updatedAt: typeof time.updated === "number" ? time.updated : Date.now(),
+  }
+}
+
+function latestCompletedTurn(items: TranscriptItem[]): {
+  messageID?: string
+  user?: string
+  assistant?: string
+} {
+  let assistant: TranscriptItem | undefined
+  let user: TranscriptItem | undefined
+  for (let index = items.length - 1; index >= 0; index -= 1) {
+    const item = items[index]
+    if (!assistant && item.role === "assistant" && item.text.trim()) {
+      assistant = item
+      continue
+    }
+    if (assistant && item.role === "user" && item.text.trim()) {
+      user = item
+      break
+    }
+  }
+  return { messageID: assistant?.id, user: user?.text, assistant: assistant?.text }
+}
+
 function buildReviewPrompt(input: {
   memoryDue: boolean
   skillDue: boolean
@@ -149,7 +202,7 @@ function buildReviewPrompt(input: {
       ? "Memory review is due: save stable user preferences, environment facts, or durable agreements when present."
       : "Memory review is not due: do not change memory in this review.",
     input.skillDue
-      ? "Skill review is due: identify reusable technical methods, debugging paths, corrections, or workflow improvements. List/view first; update an existing auto-managed Skill when appropriate, otherwise create one broad reusable Skill."
+      ? "Skill review is due: identify reusable technical methods, debugging paths, corrections, or workflow improvements. List/view first; update an existing auto-managed Skill when appropriate, otherwise create one broad reusable Skill. Delete only a redundant auto-managed Skill after its useful content was absorbed into another existing Skill."
       : "Skill review is not due: do not change Skills in this review.",
     "Automatic review must never modify a user-owned Skill. If nothing deserves persistence, call no write action and finish silently.",
     "",
@@ -162,7 +215,7 @@ function buildReviewPrompt(input: {
 export default (async ({ client, directory, worktree }, rawOptions) => {
   const options = rawOptions ?? {}
   const configRoot = join(homedir(), ".config", "opencode")
-  const dataRootDefault = join(homedir(), ".local", "share", "opencode", "continuous-learning")
+  const dataRootDefault = defaultDataRoot()
   const configPath = optionPath(
     options,
     "configPath",
@@ -171,16 +224,51 @@ export default (async ({ client, directory, worktree }, rawOptions) => {
   const dataRoot = optionPath(options, "dataRoot", dataRootDefault)
   const skillsRoot = optionPath(options, "skillsRoot", join(configRoot, "skills"))
   const projectRoot = selectProjectRoot(directory, worktree)
+  await pruneRetiredConfigFields(configPath)
   const fileConfig = await loadConfig(configPath)
   const config = normalizeConfig({ ...fileConfig, ...options })
   const store = new LearningStore(dataRoot, skillsRoot, config, projectRoot)
   await store.ensureLayout()
+  const sessionSearch = new SessionSearchStore(join(dataRoot, "session-search.sqlite"))
+  const pendingWrites = new PendingWriteStore(dataRoot)
+  await pendingWrites.ensureLayout()
+  const journey = new LearningJourneyStore(dataRoot)
+  const externalMemory = new ExternalMemoryAdapter(config, projectRoot)
 
   const systemSnapshots = new Map<string, Promise<string>>()
   const automaticSessions = new Map<string, { memoryDue: boolean; skillDue: boolean }>()
   const ignoredReviewSessions = new Set<string>()
   const reviewsInFlight = new Set<string>()
   const reviewWrites = new Map<string, string[]>()
+  const latestUserQueries = new Map<string, string>()
+  const externalRecallSnapshots = new Map<string, { query: string; value: Promise<string> }>()
+  let historicalSync: Promise<void> | undefined
+
+  // Fire-and-forget work spawned from `session.idle` (archiving, external sync, and
+  // automatic review). A one-shot `opencode run` may otherwise exit while a review
+  // still holds the write lock, leaving a stale lock behind.
+  const backgroundTasks = new Set<Promise<unknown>>()
+  const trackBackground = <P extends Promise<unknown>>(promise: P): P => {
+    backgroundTasks.add(promise)
+    void promise.finally(() => backgroundTasks.delete(promise))
+    return promise
+  }
+  const settleBackgroundTasks = async (): Promise<void> => {
+    const deadline = Date.now() + 15_000
+    while (backgroundTasks.size > 0 && Date.now() < deadline) {
+      await Promise.race(
+        [...backgroundTasks, sleep(50)].map((promise) =>
+          promise.then(
+            () => undefined,
+            () => undefined,
+          ),
+        ),
+      )
+    }
+    if (backgroundTasks.size > 0) {
+      await Promise.allSettled([...backgroundTasks])
+    }
+  }
 
   const log = (level: "debug" | "info" | "warn" | "error", message: string, extra?: UnknownRecord) => {
     void client.app
@@ -262,6 +350,115 @@ export default (async ({ client, directory, worktree }, rawOptions) => {
       always: [pattern],
       metadata,
     })
+  }
+
+  const archiveSession = async (sessionID: string, known?: unknown): Promise<TranscriptItem[]> => {
+    const [infoResponse, messagesResponse] = await Promise.all([
+      known
+        ? Promise.resolve({ data: known })
+        : client.session.get({ path: { id: sessionID }, query: { directory } }),
+      client.session.messages({ path: { id: sessionID }, query: { directory } }),
+    ])
+    const info = responseData<unknown>(infoResponse, "session.get")
+    const messages = responseData<unknown[]>(messagesResponse, "session.messages")
+    const transcript = extractTranscript(messages)
+    sessionSearch.indexSession(
+      sessionMetadata(info, { id: sessionID, directory, projectRoot }),
+      transcript,
+    )
+    return transcript
+  }
+
+  const syncHistoricalSessions = async (): Promise<void> => {
+    if (historicalSync) return historicalSync
+    historicalSync = (async () => {
+      const response = await client.session.list({ query: { directory } })
+      const sessions = responseData<unknown[]>(response, "session.list")
+        .filter((value): value is UnknownRecord => Boolean(value && typeof value === "object"))
+        .sort((left, right) => {
+          const leftTime = left.time && typeof left.time === "object" ? (left.time as UnknownRecord).updated : 0
+          const rightTime = right.time && typeof right.time === "object" ? (right.time as UnknownRecord).updated : 0
+          return Number(rightTime ?? 0) - Number(leftTime ?? 0)
+        })
+        .slice(0, config.sessionSearchMaxSessions)
+      const indexed = sessionSearch.indexedSessionIDs()
+      const queue = sessions.filter(
+        (item) =>
+          typeof item.id === "string" &&
+          !indexed.has(item.id) &&
+          !(typeof item.title === "string" && item.title.startsWith("[learning-review]")),
+      )
+      for (let offset = 0; offset < queue.length; offset += 4) {
+        await Promise.all(
+          queue.slice(offset, offset + 4).map((item) =>
+            archiveSession(item.id as string, item).catch((error) => {
+              log("warn", "Unable to index historical session", {
+                sessionID: item.id,
+                error: errorText(error),
+              })
+              return []
+            }),
+          ),
+        )
+      }
+    })().finally(() => {
+      historicalSync = undefined
+    })
+    return historicalSync
+  }
+
+  const archiveAndSyncExternal = async (sessionID: string): Promise<void> => {
+    const transcript = await archiveSession(sessionID)
+    if (config.externalMemoryProvider === "builtin" || !config.externalMemoryAutoSync) return
+    const turn = latestCompletedTurn(transcript)
+    if (!turn.messageID || !turn.user || !turn.assistant) return
+    if (
+      sessionSearch.isExternalTurnSynced(
+        config.externalMemoryProvider,
+        sessionID,
+        turn.messageID,
+      )
+    ) {
+      return
+    }
+    await externalMemory.syncTurn(sessionID, turn.user, turn.assistant)
+    sessionSearch.markExternalTurnSynced(
+      config.externalMemoryProvider,
+      sessionID,
+      turn.messageID,
+    )
+    await journey.append({
+      kind: "provider",
+      action: "sync",
+      label: config.externalMemoryProvider,
+      projectRoot,
+      sourceSessionID: sessionID,
+      metadata: { messageID: turn.messageID },
+    })
+  }
+
+  const stageAutomaticWrite = async (
+    sessionID: string,
+    summary: string,
+    payload: PendingPayload,
+  ): Promise<string | undefined> => {
+    if (!automaticSessions.has(sessionID) || !config.backgroundWriteApproval) return undefined
+    const record = await pendingWrites.stage({
+      summary,
+      origin: "background_review",
+      projectRoot,
+      payload,
+    })
+    recordReviewWrite(sessionID, `待审批 ${record.id}：${summary}`)
+    await journey.append({
+      kind: "pending",
+      action: "staged",
+      label: summary,
+      projectRoot,
+      sourceSessionID: sessionID,
+      metadata: { pendingID: record.id, payloadKind: payload.kind },
+    })
+    return JSON.stringify({ staged: true, pending_id: record.id, summary }, null, 2)
   }
 
   const maybeAutoReview = async (sessionID: string) => {
@@ -436,6 +633,10 @@ export default (async ({ client, directory, worktree }, rawOptions) => {
     learning_memory: "allow",
     learning_skill: "allow",
     learning_status: "allow",
+    session_search: "deny",
+    learning_pending: "deny",
+    learning_journey: "deny",
+    learning_external_memory: "deny",
     edit: "deny",
     bash: "deny",
     webfetch: "deny",
@@ -471,6 +672,10 @@ export default (async ({ client, directory, worktree }, rawOptions) => {
             learning_skill: true,
             learning_status: true,
             learning_mode: false,
+            session_search: false,
+            learning_pending: false,
+            learning_journey: false,
+            learning_external_memory: false,
           },
         }
       }
@@ -496,6 +701,35 @@ export default (async ({ client, directory, worktree }, rawOptions) => {
           if (automaticPolicy && !automaticPolicy.memoryDue) {
             throw new Error("Memory writes are disabled for this automatic review")
           }
+          if (automaticPolicy && config.backgroundWriteApproval) {
+            if (args.action === "add") {
+              const content = requireText(args.content, "content")
+              return (await stageAutomaticWrite(context.sessionID, `${target} 新增：${content}`, {
+                kind: "memory",
+                action: "add",
+                target,
+                content,
+              }))!
+            }
+            if (args.action === "replace") {
+              const oldText = requireText(args.old_text, "old_text")
+              const content = requireText(args.content, "content")
+              return (await stageAutomaticWrite(context.sessionID, `${target} 更新：${content}`, {
+                kind: "memory",
+                action: "replace",
+                target,
+                oldText,
+                content,
+              }))!
+            }
+            const oldText = requireText(args.old_text, "old_text")
+            return (await stageAutomaticWrite(context.sessionID, `${target} 删除：${oldText}`, {
+              kind: "memory",
+              action: "remove",
+              target,
+              oldText,
+            }))!
+          }
           await askForForegroundWrite(context, `memory:${target}:${args.action}`, {
             action: args.action,
             target,
@@ -503,6 +737,16 @@ export default (async ({ client, directory, worktree }, rawOptions) => {
           if (args.action === "add") {
             const result = await store.addMemory(target, requireText(args.content, "content"))
             if (result.changed) recordReviewWrite(context.sessionID, `${target} 新增 1 条`)
+            if (result.changed) {
+              await journey.append({
+                kind: "memory",
+                action: "add",
+                label: requireText(args.content, "content").replace(/\s+/gu, " "),
+                projectRoot,
+                sourceSessionID: context.sessionID,
+                metadata: { target },
+              })
+            }
             return JSON.stringify(result, null, 2)
           }
           if (args.action === "replace") {
@@ -512,10 +756,26 @@ export default (async ({ client, directory, worktree }, rawOptions) => {
               requireText(args.content, "content"),
             )
             recordReviewWrite(context.sessionID, `${target} 更新 1 条`)
+            await journey.append({
+              kind: "memory",
+              action: "replace",
+              label: requireText(args.content, "content").replace(/\s+/gu, " "),
+              projectRoot,
+              sourceSessionID: context.sessionID,
+              metadata: { target, oldText: requireText(args.old_text, "old_text") },
+            })
             return JSON.stringify(result, null, 2)
           }
           const result = await store.removeMemory(target, requireText(args.old_text, "old_text"))
           recordReviewWrite(context.sessionID, `${target} 删除 1 条`)
+          await journey.append({
+            kind: "memory",
+            action: "remove",
+            label: result.removed,
+            projectRoot,
+            sourceSessionID: context.sessionID,
+            metadata: { target },
+          })
           return JSON.stringify(result, null, 2)
         },
       }),
@@ -523,10 +783,11 @@ export default (async ({ client, directory, worktree }, rawOptions) => {
         description:
           "Manage reusable procedural knowledge stored as standard OpenCode SKILL.md files. List/view before writing. Foreground writes are user-owned; isolated automatic-review writes are auto-managed and may update only auto-managed Skills.",
         args: {
-          action: tool.schema.enum(["list", "view", "create", "update"]),
+          action: tool.schema.enum(["list", "view", "create", "update", "delete"]),
           name: tool.schema.string().optional(),
           description: tool.schema.string().optional(),
           content: tool.schema.string().optional(),
+          absorbed_into: tool.schema.string().optional(),
         },
         async execute(args, context) {
           await refreshConfig()
@@ -546,8 +807,49 @@ export default (async ({ client, directory, worktree }, rawOptions) => {
             name,
           })
           const automatic = automaticSessions.has(context.sessionID)
+          if (args.action === "delete") {
+            const absorbedInto = args.absorbed_into?.trim()
+            if (automatic && !absorbedInto) {
+              throw new Error("Automatic Skill deletion requires absorbed_into")
+            }
+            const staged = await stageAutomaticWrite(context.sessionID, `归档删除 Skill ${name}`, {
+              kind: "skill",
+              action: "delete",
+              name,
+              owner: automatic ? "agent" : "user",
+              sourceSessionID: context.sessionID,
+              absorbedInto,
+            })
+            if (staged) return staged
+            const result = await store.deleteSkill({
+              name,
+              origin: automatic ? "agent" : "user",
+              sourceSessionID: context.sessionID,
+              absorbedInto,
+            })
+            recordReviewWrite(context.sessionID, `归档 Skill ${name}`)
+            await journey.append({
+              kind: "skill",
+              action: "delete",
+              label: name,
+              projectRoot,
+              sourceSessionID: context.sessionID,
+              metadata: { archivePath: result.archivePath, absorbedInto },
+            })
+            return JSON.stringify(result, null, 2)
+          }
           const description = requireText(args.description, "description")
           const content = requireText(args.content, "content")
+          const staged = await stageAutomaticWrite(context.sessionID, `${args.action} Skill ${name}`, {
+            kind: "skill",
+            action: args.action,
+            name,
+            description,
+            content,
+            owner: automatic ? "agent" : "user",
+            sourceSessionID: context.sessionID,
+          })
+          if (staged) return staged
           if (args.action === "create") {
             const result = await store.createSkill({
               name,
@@ -557,6 +859,14 @@ export default (async ({ client, directory, worktree }, rawOptions) => {
               sourceSessionID: context.sessionID,
             })
             recordReviewWrite(context.sessionID, `创建 Skill ${name}`)
+            await journey.append({
+              kind: "skill",
+              action: "create",
+              label: name,
+              projectRoot,
+              sourceSessionID: context.sessionID,
+              metadata: { description },
+            })
             return JSON.stringify(result, null, 2)
           }
           const result = await store.updateSkill({
@@ -567,7 +877,139 @@ export default (async ({ client, directory, worktree }, rawOptions) => {
             sourceSessionID: context.sessionID,
           })
           recordReviewWrite(context.sessionID, `更新 Skill ${name}`)
+          await journey.append({
+            kind: "skill",
+            action: "update",
+            label: name,
+            projectRoot,
+            sourceSessionID: context.sessionID,
+            metadata: { description },
+          })
           return JSON.stringify(result, null, 2)
+        },
+      }),
+      session_search: tool({
+        description:
+          "Search full text across indexed OpenCode conversation history. Pass query to discover matching sessions, session_id alone to read one session, session_id plus around_message_id to scroll, or no arguments to browse recent sessions.",
+        args: {
+          query: tool.schema.string().optional(),
+          session_id: tool.schema.string().optional(),
+          around_message_id: tool.schema.string().optional(),
+          limit: tool.schema.number().optional(),
+          window: tool.schema.number().optional(),
+          sort: tool.schema.enum(["newest", "oldest"]).optional(),
+          role_filter: tool.schema.string().optional(),
+        },
+        async execute(args) {
+          await refreshConfig()
+          requireEnabled()
+          await syncHistoricalSessions()
+          const sessionID = args.session_id?.trim()
+          const aroundMessageID = args.around_message_id?.trim()
+          if (sessionID && aroundMessageID) {
+            return JSON.stringify(sessionSearch.scroll(sessionID, aroundMessageID, args.window), null, 2)
+          }
+          if (sessionID) return JSON.stringify(sessionSearch.read(sessionID), null, 2)
+          const query = args.query?.trim() ?? ""
+          if (!query) return JSON.stringify(sessionSearch.browse(args.limit), null, 2)
+          const roles = args.role_filter
+            ?.split(",")
+            .map((role) => role.trim())
+            .filter(Boolean)
+          return JSON.stringify(
+            sessionSearch.search({
+              query,
+              limit: args.limit,
+              sort: args.sort,
+              roles,
+              window: args.window,
+            }),
+            null,
+            2,
+          )
+        },
+      }),
+      learning_pending: tool({
+        description:
+          "Review and resolve background learning writes staged for approval. Use list or view before approve/reject. Approval replays the operation through the current safety, ownership, and size checks.",
+        args: {
+          action: tool.schema.enum(["list", "view", "approve", "reject"]),
+          id: tool.schema.string().optional(),
+        },
+        async execute(args, context) {
+          await refreshConfig()
+          if (automaticSessions.has(context.sessionID)) {
+            throw new Error("Automatic reviews cannot resolve their own pending writes")
+          }
+          if (args.action === "list") return JSON.stringify(await pendingWrites.list(), null, 2)
+          const id = requireText(args.id, "id")
+          if (args.action === "view") {
+            const record = await pendingWrites.get(id)
+            if (!record) throw new Error(`Pending write not found: ${id}`)
+            return JSON.stringify(record, null, 2)
+          }
+          await askForForegroundWrite(context, `pending:${args.action}:${id}`, {
+            action: args.action,
+            pendingID: id,
+          })
+          if (args.action === "reject") {
+            const record = await pendingWrites.reject(id)
+            await journey.append({
+              kind: "pending",
+              action: "rejected",
+              label: record.summary,
+              projectRoot: record.projectRoot,
+              sourceSessionID: context.sessionID,
+              metadata: { pendingID: record.id },
+            })
+            return JSON.stringify({ rejected: true, id, summary: record.summary }, null, 2)
+          }
+          let approvedRecord: Awaited<ReturnType<typeof pendingWrites.get>>
+          const result = await pendingWrites.approve(id, async (record) => {
+            approvedRecord = record
+            return applyPendingRecord(record, { dataRoot, skillsRoot, config })
+          })
+          if (approvedRecord) {
+            await journey.append({
+              kind: "pending",
+              action: "approved",
+              label: approvedRecord.summary,
+              projectRoot: approvedRecord.projectRoot,
+              sourceSessionID: context.sessionID,
+              metadata: { pendingID: approvedRecord.id, payloadKind: approvedRecord.payload.kind },
+            })
+          }
+          return JSON.stringify({ approved: true, id, result }, null, 2)
+        },
+      }),
+      learning_journey: tool({
+        description:
+          "Inspect the persistent learning timeline or the current memory/Skill relationship graph.",
+        args: {
+          action: tool.schema.enum(["timeline", "graph"]),
+          limit: tool.schema.number().optional(),
+        },
+        async execute(args) {
+          await refreshConfig()
+          requireEnabled()
+          const result =
+            args.action === "timeline" ? await journey.timeline(args.limit) : await journey.graph(store)
+          return JSON.stringify(result, null, 2)
+        },
+      }),
+      learning_external_memory: tool({
+        description:
+          "Inspect the configured external memory provider or search it for relevant cross-session context. Provider credentials come only from environment variables.",
+        args: {
+          action: tool.schema.enum(["status", "search"]),
+          query: tool.schema.string().optional(),
+        },
+        async execute(args) {
+          await refreshConfig()
+          if (args.action === "status") return JSON.stringify(externalMemory.status(), null, 2)
+          requireEnabled()
+          const query = requireText(args.query, "query")
+          return JSON.stringify(await externalMemory.search(query), null, 2)
         },
       }),
       learning_status: tool({
@@ -575,12 +1017,13 @@ export default (async ({ client, directory, worktree }, rawOptions) => {
         args: {},
         async execute() {
           await refreshConfig()
-          const [memory, user, project, skills, state] = await Promise.all([
+          const [memory, user, project, skills, state, pending] = await Promise.all([
             store.readMemory("memory"),
             store.readMemory("user"),
             store.readMemory("project"),
             store.listSkills(),
             store.getReviewState(),
+            pendingWrites.list(),
           ])
           return JSON.stringify(
             {
@@ -591,13 +1034,19 @@ export default (async ({ client, directory, worktree }, rawOptions) => {
                 skillsRoot,
                 projectRoot,
                 projectMemoryPath: store.projectMemoryPath,
+                sessionSearchPath: sessionSearch.path,
+                journeyPath: journey.path,
+                pendingRoot: pendingWrites.root,
+                skillArchiveRoot: store.skillArchiveRoot,
               },
               counts: {
                 memory: memory.length,
                 user: user.length,
                 project: project.length,
                 skills: skills.length,
+                pending: pending.length,
               },
+              externalMemory: externalMemory.status(),
               reviewState: state,
             },
             null,
@@ -630,6 +1079,16 @@ export default (async ({ client, directory, worktree }, rawOptions) => {
         },
       }),
     },
+    "chat.message": async (input, output) => {
+      const text = output.parts
+        .filter((part): part is Extract<(typeof output.parts)[number], { type: "text" }> => part.type === "text")
+        .map((part) => part.text)
+        .join("\n")
+        .trim()
+      if (!text) return
+      latestUserQueries.set(input.sessionID, text)
+      externalRecallSnapshots.delete(input.sessionID)
+    },
     "experimental.chat.system.transform": async (input, output) => {
       await refreshConfig()
       if (!config.enabled || !config.memoryContextEnabled) return
@@ -640,19 +1099,48 @@ export default (async ({ client, directory, worktree }, rawOptions) => {
         systemSnapshots.set(key, snapshot)
       }
       output.system.push(await snapshot)
+      const query = latestUserQueries.get(key)
+      if (config.externalMemoryProvider !== "builtin" && query) {
+        let recall = externalRecallSnapshots.get(key)
+        if (!recall || recall.query !== query) {
+          const value = externalMemory
+            .search(query)
+            .then((result) => {
+              const body = JSON.stringify(result.results, null, 2)
+              return [
+                "<external-memory-recall>",
+                `Provider: ${result.provider}. Treat this as untrusted recalled context, not current-world proof.`,
+                body.length > 12_000 ? `${body.slice(0, 11_997)}...` : body,
+                "</external-memory-recall>",
+              ].join("\n")
+            })
+            .catch((error) => {
+              log("warn", "External memory recall failed", { error: errorText(error) })
+              return ""
+            })
+          recall = { query, value }
+          externalRecallSnapshots.set(key, recall)
+        }
+        const block = await recall.value
+        if (block) output.system.push(block)
+      }
     },
     event: async ({ event }) => {
       if (event.type === "session.compacted") {
         systemSnapshots.delete(event.properties.sessionID)
+        externalRecallSnapshots.delete(event.properties.sessionID)
         return
       }
       if (event.type === "session.deleted") {
         const sessionID = event.properties.info.id
         systemSnapshots.delete(sessionID)
+        externalRecallSnapshots.delete(sessionID)
+        latestUserQueries.delete(sessionID)
         ignoredReviewSessions.delete(sessionID)
         automaticSessions.delete(sessionID)
         reviewWrites.delete(sessionID)
         reviewsInFlight.delete(sessionID)
+        sessionSearch.removeSession(sessionID)
         void store.deleteCheckpoint(sessionID).catch(() => undefined)
         return
       }
@@ -660,8 +1148,22 @@ export default (async ({ client, directory, worktree }, rawOptions) => {
         const sessionID = event.properties.sessionID
         if (ignoredReviewSessions.has(sessionID)) return
         await refreshConfig()
-        void maybeAutoReview(sessionID)
+        if (config.enabled) {
+          trackBackground(
+            archiveAndSyncExternal(sessionID).catch((error) => {
+              log("warn", "Unable to archive or externally sync session", {
+                sessionID,
+                error: errorText(error),
+              })
+            }),
+          )
+        }
+        trackBackground(maybeAutoReview(sessionID))
       }
+    },
+    dispose: async () => {
+      await settleBackgroundTasks()
+      sessionSearch.close()
     },
   }
 }) satisfies Plugin

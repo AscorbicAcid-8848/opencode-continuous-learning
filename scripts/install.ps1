@@ -23,6 +23,7 @@ $copies = @(
     @((Join-Path $resolvedProjectRoot 'install\continuous-learning.ts'), (Join-Path $pluginDirectory 'continuous-learning.ts')),
     @((Join-Path $resolvedProjectRoot 'src\plugin.ts'), (Join-Path $moduleDirectory 'plugin.ts')),
     @((Join-Path $resolvedProjectRoot 'src\core.ts'), (Join-Path $moduleDirectory 'core.ts')),
+    @((Join-Path $resolvedProjectRoot 'src\advanced.ts'), (Join-Path $moduleDirectory 'advanced.ts')),
     @((Join-Path $resolvedProjectRoot 'src\tui.ts'), (Join-Path $moduleDirectory 'tui.ts')),
     @((Join-Path $resolvedProjectRoot 'install\plugin-package.json'), (Join-Path $moduleDirectory 'package.json')),
     @((Join-Path $resolvedProjectRoot 'commands\learn.md'), (Join-Path $commandDirectory 'learn.md')),
@@ -61,6 +62,26 @@ if (-not (Test-Path -LiteralPath $pluginDependency)) {
     Write-Warning '@opencode-ai/plugin is not installed under the OpenCode config directory.'
 }
 
+$bunCommand = Get-Command bun -ErrorAction SilentlyContinue
+$npmCommand = Get-Command npm -ErrorAction SilentlyContinue
+Push-Location $moduleDirectory
+try {
+    if ($bunCommand) {
+        & $bunCommand.Source install --production --ignore-scripts
+        if ($LASTEXITCODE -ne 0) { throw "bun install failed with exit code $LASTEXITCODE." }
+    }
+    elseif ($npmCommand) {
+        & $npmCommand.Source install --omit=dev --ignore-scripts --no-audit --no-fund
+        if ($LASTEXITCODE -ne 0) { throw "npm install failed with exit code $LASTEXITCODE." }
+    }
+    else {
+        Write-Warning 'bun/npm was not found; Honcho provider support was not installed.'
+    }
+}
+finally {
+    Pop-Location
+}
+
 $opencodeCommand = Get-Command opencode -ErrorAction SilentlyContinue
 if (-not $opencodeCommand) {
     throw 'OpenCode executable was not found; unable to register the TUI settings panel.'
@@ -92,4 +113,4 @@ Write-Output 'Installed settings panel: /learning-settings (also available in th
 Write-Output "Installed commands: $(Join-Path $commandDirectory 'learn.md'), $(Join-Path $commandDirectory 'learn-review.md')"
 Write-Output "Settings: $settingsPath"
 Write-Output "User manual: $(Join-Path $settingsDirectory '用户手册.md')"
-Write-Output 'Restart OpenCode before using /learning-settings, /learn, or /learn-review.'
+Write-Output 'Restart OpenCode before using /learning-settings, /learning-pending, /learning-journey, /learn, or /learn-review.'

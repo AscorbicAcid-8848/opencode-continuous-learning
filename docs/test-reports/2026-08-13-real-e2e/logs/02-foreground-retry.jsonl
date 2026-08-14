@@ -1,0 +1,5 @@
+Script started on 2026-08-13 18:33:47+08:00 [<not executed on terminal>]
+{"type":"error","timestamp":1786618939818,"sessionID":"ses_005509583ffeL6L25cXmQwnJTc","error":{"name":"UnknownError","data":{"message":"Unexpected server error. Check server logs for details.","ref":"err_725c4eeb"}}}
+{"type":"error","timestamp":1786618939842,"sessionID":"ses_005509583ffeL6L25cXmQwnJTc","error":{"name":"UnknownError","data":{"message":"Failed query: insert into \"part\" (\"id\", \"message_id\", \"session_id\", \"time_created\", \"time_updated\", \"data\") values (?, ?, ?, ?, ?, ?) on conflict (\"part\".\"id\") do update set \"time_updated\" = ?, \"data\" = ?\nparams: prt_ffac989a5001GlKnJ8UpvtbU0K,msg_ffaaf7135001XomJOw8LTZwASi,ses_005509583ffeL6L25cXmQwnJTc,1786618939813,1786618939814,{\"type\":\"step-start\"},1786618939814,{\"type\":\"step-start\"}"}}}
+
+Script done on 2026-08-13 19:02:19+08:00 [COMMAND_EXIT_CODE="1"]

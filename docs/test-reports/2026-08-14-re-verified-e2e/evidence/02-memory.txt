@@ -1,0 +1,12 @@
+[0m
+> build · gpt-5.6-terra
+[0m
+[0m⚙ [0mlearning_memory {"action":"add","target":"project","content":"CL_E2E_20260814: 本项目使用 pnpm 与端口 3000"}
+[0m⚙ [0mlearning_memory {"action":"view","target":"project"}
+[0m⚙ [0mlearning_memory {"action":"add","target":"project","content":"CL_E2E_20260814: 本项目使用 pnpm 与端口 3000"}
+1. 首次 `add`：`changed: true`
+2. `view`：项目记忆包含该条目
+3. 重复 `add`：`changed: false`，已去重
+
+最终条目列表：
+- `CL_E2E_20260814: 本项目使用 pnpm 与端口 3000`

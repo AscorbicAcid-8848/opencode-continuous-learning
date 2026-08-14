@@ -1,0 +1,14 @@
+[0m
+> build · gpt-5.6-terra
+[0m
+[0m✗ [0mlearning_skill {"name":"cl-e2e-build"} failed
+[91m[1mError: [0mdescription is required for this action
+[0m✗ [0mlearning_skill {"name":"cl-e2e-build","description":"用户请求前台删除并归档"} failed
+[91m[1mError: [0mcontent is required for this action
+[0m⚙ [0mlearning_skill {"name":"cl-e2e-build","description":"用户请求前台删除并归档","content":"用户请求前台删除并归档"}
+[0m⚙ [0mlearning_skill {"action":"delete","name":"cl-e2e-build"}
+[0m⚙ [0mlearning_skill {"action":"list"}
+已归档删除 `cl-e2e-build`。
+
+- archivePath：`/tmp/continuous-learning-e2e-fixed/home/.config/opencode/skills/.continuous-learning-archive/cl-e2e-build-1786672003973-8717addc`
+- list 结果：`[]`，该 Skill 已从列表消失。

@@ -1,0 +1,4 @@
+Script started on 2026-08-13 18:33:17+08:00 [<not executed on terminal>]
+{"type":"error","timestamp":1786617199918,"sessionID":"ses_0055108b7ffeixDbC1o3mNK9YR","error":{"name":"UnknownError","data":{"message":"Unexpected server error. Check server logs for details.","ref":"err_29e6b501"}}}
+
+Script done on 2026-08-13 18:33:19+08:00 [COMMAND_EXIT_CODE="1"]

@@ -1,0 +1,4 @@
+[0m
+> build · gpt-5.6-terra
+[0m
+CL_E2E_20260814 项目的生产部署平台是 Fly.io，配置文件是 `fly.toml`。

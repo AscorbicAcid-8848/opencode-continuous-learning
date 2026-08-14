@@ -1,0 +1,9 @@
+[0m
+> build · gpt-5.6-terra
+[0m
+[0m⚙ [0msession_search {"query":"CL_E2E_20260814","limit":5}
+返回了 3 个会话：
+
+1. `ses_0020d71f1ffeNxt7YIKBRWeqCN`：`New session - 2026-08-14T01:45:59.566Z`
+2. `ses_0020e4bbaffes42n1pc6Wf1YBG`：`项目记忆添加与去重验证`
+3. `ses_0020df259ffeESNLzeUPZ55Waf`：`创建并验证 cl-e2e-build 构建技能`

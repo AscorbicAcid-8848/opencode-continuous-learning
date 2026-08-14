@@ -1,6 +1,7 @@
 import assert from "node:assert/strict"
+import { spawnSync } from "node:child_process"
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
-import { tmpdir } from "node:os"
+import { homedir, hostname, tmpdir } from "node:os"
 import { join, resolve } from "node:path"
 import test from "node:test"
 
@@ -8,12 +9,15 @@ import {
   DEFAULT_CONFIG,
   LearningStore,
   countTranscript,
+  defaultDataRoot,
   isReviewDue,
   normalizeConfig,
+  pruneRetiredConfigFields,
   projectStorageName,
   resetConfig,
   renderTranscript,
   updateConfig,
+  withStorageLock,
   type TranscriptItem,
 } from "../src/core.ts"
 
@@ -62,14 +66,26 @@ test("settings updates validate values, preserve unknown fields, and reset known
   try {
     await writeFile(
       path,
-      `${JSON.stringify({ enabled: true, memoryEveryTurns: 10, futureSetting: "preserved" })}\n`,
+      `${JSON.stringify({
+        enabled: true,
+        memoryEveryTurns: 10,
+        sessionSearchEnabled: false,
+        learningJourneyEnabled: false,
+        skillDeleteEnabled: false,
+        futureSetting: "preserved",
+      })}\n`,
       "utf8",
     )
+    assert.equal(await pruneRetiredConfigFields(path), true)
+    assert.equal(await pruneRetiredConfigFields(path), false)
     const updated = await updateConfig(path, { enabled: false, memoryEveryTurns: 25 })
     assert.equal(updated.enabled, false)
     assert.equal(updated.memoryEveryTurns, 25)
     const raw = JSON.parse(await readFile(path, "utf8")) as Record<string, unknown>
     assert.equal(raw.futureSetting, "preserved")
+    assert.equal("sessionSearchEnabled" in raw, false)
+    assert.equal("learningJourneyEnabled" in raw, false)
+    assert.equal("skillDeleteEnabled" in raw, false)
 
     const beforeInvalid = await readFile(path, "utf8")
     await assert.rejects(updateConfig(path, { maxConcurrentReviews: 9 }), /between 1 and 8/)
@@ -315,4 +331,52 @@ test("transcript rendering keeps the most recent complete chunks", () => {
   assert.doesNotMatch(rendered, /\[USER old\]/)
   assert.match(rendered, /\[ASSISTANT new\]/)
   assert.match(rendered, /final verified result/)
+})
+
+test("default data root matches the server's data location", () => {
+  assert.equal(
+    defaultDataRoot(),
+    join(homedir(), ".local", "share", "opencode", "continuous-learning"),
+  )
+})
+
+test("stale write locks are reclaimed without touching live owners", async () => {
+  const root = await mkdtemp(join(tmpdir(), "opencode-learning-lock-"))
+  const lockPath = join(root, ".write.lock")
+  const dead = spawnSync(process.execPath, ["-e", "process.exit(0)"]).pid
+  assert.ok(typeof dead === "number" && dead > 0, "expected a child PID for the stale lock")
+  try {
+    // Current JSON lock format whose owner PID no longer exists.
+    await writeFile(
+      lockPath,
+      `${JSON.stringify({
+        owner: `${dead}:stale-uuid`,
+        pid: dead,
+        host: hostname(),
+        createdAt: Date.now() - 60_000,
+      })}\n`,
+      "utf8",
+    )
+    let ran = false
+    await withStorageLock(root, async () => {
+      ran = true
+    })
+    assert.equal(ran, true)
+    await assert.rejects(readFile(lockPath, "utf8"), /ENOENT/)
+
+    // Legacy `<pid>:<uuid>\n<ISO timestamp>\n` locks are also reclaimed.
+    await writeFile(
+      lockPath,
+      `${dead}:legacy-uuid\n${new Date(Date.now() - 60_000).toISOString()}\n`,
+      "utf8",
+    )
+    ran = false
+    await withStorageLock(root, async () => {
+      ran = true
+    })
+    assert.equal(ran, true)
+    await assert.rejects(readFile(lockPath, "utf8"), /ENOENT/)
+  } finally {
+    await rm(root, { recursive: true, force: true })
+  }
 })

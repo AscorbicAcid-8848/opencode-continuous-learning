@@ -5,6 +5,7 @@ import { join } from "node:path"
 import test from "node:test"
 
 import { DEFAULT_CONFIG } from "../src/core.ts"
+import { LearningJourneyStore, PendingWriteStore } from "../src/advanced.ts"
 import tuiModule from "../src/tui.ts"
 
 type UnknownRecord = Record<string, unknown>
@@ -63,6 +64,9 @@ test("TUI panel registers a slash command and edits, validates, and resets setti
       DialogConfirm(props: UnknownRecord) {
         return { kind: "confirm", ...props }
       },
+      DialogAlert(props: UnknownRecord) {
+        return { kind: "alert", ...props }
+      },
     },
   }
 
@@ -70,17 +74,28 @@ test("TUI panel registers a slash command and edits, validates, and resets setti
     await mkdir(join(root, "continuous-learning"), { recursive: true })
     await writeFile(configPath, `${JSON.stringify({ ...DEFAULT_CONFIG, futureSetting: 7 }, null, 2)}\n`)
 
-    await tuiModule.tui(api as never, { configPath }, {} as never)
+    await tuiModule.tui(
+      api as never,
+      {
+        configPath,
+        dataRoot: join(root, "data"),
+        skillsRoot: join(root, "skills"),
+      },
+      {} as never,
+    )
     assert.ok(layer)
     assert.equal(typeof disposed, "function")
     const commands = layer.commands as UnknownRecord[]
-    assert.equal(commands[0].slashName, "learning-settings")
+    assert.deepEqual(
+      commands.map((command) => command.slashName),
+      ["learning-settings", "learning-pending", "learning-journey"],
+    )
     await (commands[0].run as () => Promise<void>)()
 
     const first = renders.at(-1) as UnknownRecord
     assert.equal(first.kind, "select")
     const options = first.options as UnknownRecord[]
-    assert.equal(options.length, 16)
+    assert.equal(options.length, 24)
     for (const option of options) assert.equal(option.description, undefined)
     const memoryContext = options.find(
       (option) => (option.value as UnknownRecord).key === "memoryContextEnabled",
@@ -136,6 +151,28 @@ test("TUI panel registers a slash command and edits, validates, and resets setti
     })
     const raw = JSON.parse(await readFile(configPath, "utf8")) as UnknownRecord
     assert.equal(raw.futureSetting, 7)
+
+    await new PendingWriteStore(join(root, "data")).stage({
+      summary: "remember the project port",
+      origin: "background_review",
+      projectRoot: root,
+      payload: { kind: "memory", action: "add", target: "project", content: "Port 3000" },
+    })
+    await (commands[1].run as () => Promise<void>)()
+    const pending = renders.at(-1) as UnknownRecord
+    assert.equal(pending.kind, "select")
+    assert.match(String(pending.title), /待审批写入（1）/u)
+
+    await new LearningJourneyStore(join(root, "data")).append({
+      kind: "memory",
+      action: "add",
+      label: "Port 3000",
+      projectRoot: root,
+    })
+    await (commands[2].run as () => Promise<void>)()
+    const journey = renders.at(-1) as UnknownRecord
+    assert.equal(journey.kind, "select")
+    assert.match(String(journey.title), /学习时间线（1）/u)
   } finally {
     await rm(root, { recursive: true, force: true })
   }

@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "name": "cl-e2e-20260813",
+  "archivedAt": "2026-08-13T10:40:27.509Z",
+  "owner": "user",
+  "sourceSessionID": "ses_0054a9879ffednFNzlmVsKB4Cn",
+  "provenance": {
+    "schemaVersion": 1,
+    "name": "cl-e2e-20260813",
+    "owner": "user",
+    "autoManaged": false,
+    "contentHash": "sha256:a0f30ba0a7471a604c024fa412c933a494ae5a431aabe5896962fdb3bac1db73",
+    "createdAt": "2026-08-13T10:36:37.663Z",
+    "updatedAt": "2026-08-13T10:36:37.663Z",
+    "sourceSessionID": "ses_0054eee76ffeI53e2Lgf9iJbFA",
+    "lastUsedAt": "2026-08-13T10:40:25.165Z"
+  }
+}

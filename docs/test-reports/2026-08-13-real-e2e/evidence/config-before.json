@@ -1,0 +1,16 @@
+{
+  "enabled": true,
+  "autoReview": true,
+  "memoryEveryTurns": 3,
+  "skillEveryToolCalls": 15,
+  "retryCooldownMinutes": 30,
+  "maxConcurrentReviews": 2,
+  "maxTranscriptChars": 60000,
+  "memoryCharLimit": 2200,
+  "projectMemoryCharLimit": 4000,
+  "userCharLimit": 1375,
+  "foregroundWriteApproval": true,
+  "deleteReviewSessions": true,
+  "showNotifications": false,
+  "memoryContextEnabled": true
+}

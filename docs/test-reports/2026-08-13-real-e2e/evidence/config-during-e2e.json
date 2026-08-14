@@ -1,0 +1,22 @@
+{
+  "enabled": true,
+  "memoryContextEnabled": true,
+  "autoReview": false,
+  "sessionSearchMaxSessions": 50,
+  "backgroundWriteApproval": true,
+  "externalMemoryProvider": "builtin",
+  "externalMemoryAutoSync": true,
+  "externalMemoryTopK": 5,
+  "externalMemoryTimeoutMs": 3000,
+  "memoryEveryTurns": 1,
+  "skillEveryToolCalls": 1,
+  "retryCooldownMinutes": 1,
+  "maxConcurrentReviews": 1,
+  "maxTranscriptChars": 20000,
+  "memoryCharLimit": 2200,
+  "projectMemoryCharLimit": 4000,
+  "userCharLimit": 1375,
+  "foregroundWriteApproval": true,
+  "deleteReviewSessions": true,
+  "showNotifications": true
+}

@@ -45,6 +45,7 @@ remove_with_backup() {
 copy_with_backup "$project_root/install/continuous-learning.ts" "$plugin_dir/continuous-learning.ts"
 copy_with_backup "$project_root/src/plugin.ts" "$module_dir/plugin.ts"
 copy_with_backup "$project_root/src/core.ts" "$module_dir/core.ts"
+copy_with_backup "$project_root/src/advanced.ts" "$module_dir/advanced.ts"
 copy_with_backup "$project_root/src/tui.ts" "$module_dir/tui.ts"
 copy_with_backup "$project_root/install/plugin-package.json" "$module_dir/package.json"
 copy_with_backup "$project_root/commands/learn.md" "$command_dir/learn.md"
@@ -59,6 +60,14 @@ fi
 
 if [[ ! -f "$config_root/node_modules/@opencode-ai/plugin/package.json" ]]; then
   printf 'Warning: @opencode-ai/plugin is not installed under %s.\n' "$config_root" >&2
+fi
+
+if command -v bun >/dev/null 2>&1; then
+  (cd -- "$module_dir" && bun install --production --ignore-scripts)
+elif command -v npm >/dev/null 2>&1; then
+  npm install --prefix "$module_dir" --omit=dev --ignore-scripts --no-audit --no-fund
+else
+  printf 'Warning: bun/npm was not found; Honcho provider support was not installed.\n' >&2
 fi
 
 if ! command -v opencode >/dev/null 2>&1; then
@@ -81,4 +90,4 @@ printf 'Installed settings panel: /learning-settings (also available in the comm
 printf 'Installed commands: %s, %s\n' "$command_dir/learn.md" "$command_dir/learn-review.md"
 printf 'Settings: %s\n' "$settings_path"
 printf 'User manual: %s\n' "$settings_dir/用户手册.md"
-printf 'Restart OpenCode before using /learning-settings, /learn, or /learn-review.\n'
+printf 'Restart OpenCode before using /learning-settings, /learning-pending, /learning-journey, /learn, or /learn-review.\n'

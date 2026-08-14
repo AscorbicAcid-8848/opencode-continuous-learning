@@ -1,0 +1,37 @@
+bun test v1.3.13 (bf2e2cec)
+
+tests/core.test.ts:
+(pass) configuration rejects invalid types and clamps numeric limits
+(pass) settings updates validate values, preserve unknown fields, and reset known defaults [19.00ms]
+(pass) memory mutations are bounded, deduplicated, and concurrency-safe [82.00ms]
+(pass) project memory is isolated by project root while global memory remains shared [38.00ms]
+(pass) persistent-content scan blocks prompt injection and credential-like values [2.00ms]
+(pass) memory format drift is rejected without overwriting user content [17.00ms]
+(pass) automatic review can update only auto-managed Skills [57.00ms]
+(pass) manual Skill edits and foreground updates revoke automatic ownership [40.00ms]
+(pass) Skill creation never overwrites an existing user directory [7.00ms]
+(pass) review thresholds use user turns and completed tool calls independently
+(pass) transcript rendering keeps the most recent complete chunks [1.00ms]
+(pass) default data root matches the server's data location
+(pass) stale write locks are reclaimed without touching live owners [28.00ms]
+
+tests/advanced.test.ts:
+(pass) session search indexes, discovers, reads, scrolls, browses, and removes sessions [100.00ms]
+(pass) pending writes survive on disk and move to approval or rejection history [25.00ms]
+(pass) journey graph links learned memories and Skills and Skill deletion is recoverable [118.00ms]
+(pass) Mem0 adapter uses official search/add shapes without exposing credentials [2.00ms]
+
+tests/plugin.test.ts:
+(pass) project scope prefers a containing non-root worktree
+(pass) automatic review is isolated and advances its checkpoint only after success [125.00ms]
+(pass) master switch immediately disables injection, reviews, and learning tools while preserving control [119.00ms]
+(pass) background approval stages automatic writes and foreground approval safely applies them [132.00ms]
+(pass) dispose waits for an in-flight automatic review before closing [115.00ms]
+(pass) session_search backfills an OpenCode session and returns full-text matches [66.00ms]
+
+tests/tui.test.ts:
+(pass) TUI panel registers a slash command and edits, validates, and resets settings [70.00ms]
+
+ 24 pass
+ 0 fail
+Ran 24 tests across 4 files. [1218.00ms]

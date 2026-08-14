@@ -1,0 +1,10 @@
+[0m
+> build · gpt-5.6-terra
+[0m
+[0m⚙ [0mlearning_journey {"action":"timeline","limit":100}
+[0m⚙ [0mlearning_journey {"action":"graph","limit":100}
+1. 时间线事件总数：2
+事件类型：`memory` 1 个、`skill` 1 个。
+
+2. 关系图：`nodes` 2 个，`edges` 2 个。
+统计：`memories` 1、`skills` 1、`edges` 2、`events` 2。

@@ -8,6 +8,7 @@ coverage/
 Thumbs.db
 .idea/
 .vscode/
+.cache/
 
 # Never commit local OpenCode state, memories, credentials, or install backups.
 .env

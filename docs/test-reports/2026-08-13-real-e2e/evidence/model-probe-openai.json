@@ -1,0 +1,157 @@
+{
+  "info": {
+    "id": "ses_0054f486dfferfeYHFivH4KNGX",
+    "slug": "crisp-river",
+    "projectID": "global",
+    "directory": "/home/zzh/continuous-learning-e2e-project",
+    "path": "home/zzh/continuous-learning-e2e-project",
+    "title": "CL_E2E_20260813_model_probe_openai",
+    "agent": "build",
+    "model": {
+      "id": "gpt-5.6-terra",
+      "providerID": "openai",
+      "variant": "default"
+    },
+    "version": "1.18.18",
+    "summary": {
+      "additions": 0,
+      "deletions": 0,
+      "files": 0
+    },
+    "cost": 0,
+    "tokens": {
+      "input": 5568,
+      "output": 10,
+      "reasoning": 0,
+      "cache": {
+        "read": 1536,
+        "write": 0
+      }
+    },
+    "permission": [
+      {
+        "permission": "question",
+        "pattern": "*",
+        "action": "deny"
+      },
+      {
+        "permission": "plan_enter",
+        "pattern": "*",
+        "action": "deny"
+      },
+      {
+        "permission": "plan_exit",
+        "pattern": "*",
+        "action": "deny"
+      }
+    ],
+    "time": {
+      "created": 1786617313170,
+      "updated": 1786617317256
+    }
+  },
+  "messages": [
+    {
+      "info": {
+        "role": "user",
+        "time": {
+          "created": 1786617313193
+        },
+        "agent": "build",
+        "model": {
+          "providerID": "openai",
+          "modelID": "gpt-5.6-terra"
+        },
+        "summary": {
+          "diffs": []
+        },
+        "id": "msg_ffab0b7a9001Hl6cI33pWaVsqx",
+        "sessionID": "ses_0054f486dfferfeYHFivH4KNGX"
+      },
+      "parts": [
+        {
+          "type": "text",
+          "text": "\"请只回复 CL_E2E_MODEL_OK，不要调用工具。\"",
+          "id": "prt_ffab0b7ad001xqHriTKKV6HinF",
+          "sessionID": "ses_0054f486dfferfeYHFivH4KNGX",
+          "messageID": "msg_ffab0b7a9001Hl6cI33pWaVsqx"
+        }
+      ]
+    },
+    {
+      "info": {
+        "parentID": "msg_ffab0b7a9001Hl6cI33pWaVsqx",
+        "role": "assistant",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/home/zzh/continuous-learning-e2e-project",
+          "root": "/"
+        },
+        "cost": 0,
+        "tokens": {
+          "total": 7114,
+          "input": 5568,
+          "output": 10,
+          "reasoning": 0,
+          "cache": {
+            "write": 0,
+            "read": 1536
+          }
+        },
+        "modelID": "gpt-5.6-terra",
+        "providerID": "openai",
+        "time": {
+          "created": 1786617314661,
+          "completed": 1786617317231
+        },
+        "finish": "stop",
+        "id": "msg_ffab0bd65001ukft2F0pD0MBir",
+        "sessionID": "ses_0054f486dfferfeYHFivH4KNGX"
+      },
+      "parts": [
+        {
+          "type": "step-start",
+          "id": "prt_ffab0c665001hrk8w8R3Y6p4Hm",
+          "sessionID": "ses_0054f486dfferfeYHFivH4KNGX",
+          "messageID": "msg_ffab0bd65001ukft2F0pD0MBir"
+        },
+        {
+          "type": "text",
+          "text": "CL_E2E_MODEL_OK",
+          "time": {
+            "start": 1786617316967,
+            "end": 1786617317191
+          },
+          "metadata": {
+            "openai": {
+              "itemId": "msg_052125450fa7efa3016a7d9de4da5c8191b71cc1e748080e3f",
+              "phase": "final_answer"
+            }
+          },
+          "id": "prt_ffab0c6670016dnXw5uINCJvxP",
+          "sessionID": "ses_0054f486dfferfeYHFivH4KNGX",
+          "messageID": "msg_ffab0bd65001ukft2F0pD0MBir"
+        },
+        {
+          "reason": "stop",
+          "type": "step-finish",
+          "tokens": {
+            "total": 7114,
+            "input": 5568,
+            "output": 10,
+            "reasoning": 0,
+            "cache": {
+              "write": 0,
+              "read": 1536
+            }
+          },
+          "cost": 0,
+          "id": "prt_ffab0c76b001K95frul4nsXCbW",
+          "sessionID": "ses_0054f486dfferfeYHFivH4KNGX",
+          "messageID": "msg_ffab0bd65001ukft2F0pD0MBir"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,91 @@
+{
+  "schemaVersion": 1,
+  "events": [
+    {
+      "id": "9d74e74a-bff1-420d-9125-886c80732705",
+      "at": "2026-08-14T01:45:08.397Z",
+      "kind": "memory",
+      "action": "add",
+      "label": "CL_E2E_20260814: 本项目使用 pnpm 与端口 3000",
+      "projectRoot": "/tmp/continuous-learning-e2e-fixed/project",
+      "sourceSessionID": "ses_0020e4bbaffes42n1pc6Wf1YBG",
+      "metadata": {
+        "target": "project"
+      }
+    },
+    {
+      "id": "43bc9741-5d0f-48de-b965-28b28d881e1a",
+      "at": "2026-08-14T01:45:39.106Z",
+      "kind": "skill",
+      "action": "create",
+      "label": "cl-e2e-build",
+      "projectRoot": "/tmp/continuous-learning-e2e-fixed/project",
+      "sourceSessionID": "ses_0020df259ffeESNLzeUPZ55Waf",
+      "metadata": {
+        "description": "CL_E2E_20260814 构建流程"
+      }
+    },
+    {
+      "id": "6b989231-4dd1-4ecc-8acb-08c2edd082ba",
+      "at": "2026-08-14T01:46:40.622Z",
+      "kind": "skill",
+      "action": "update",
+      "label": "cl-e2e-build",
+      "projectRoot": "/tmp/continuous-learning-e2e-fixed/project",
+      "sourceSessionID": "ses_0020cfa0affe17mu2AumSbJZns",
+      "metadata": {
+        "description": "用户请求前台删除并归档"
+      }
+    },
+    {
+      "id": "ae68c36a-e018-4e20-9f6d-f7d9ded728ea",
+      "at": "2026-08-14T01:46:43.982Z",
+      "kind": "skill",
+      "action": "delete",
+      "label": "cl-e2e-build",
+      "projectRoot": "/tmp/continuous-learning-e2e-fixed/project",
+      "sourceSessionID": "ses_0020cfa0affe17mu2AumSbJZns",
+      "metadata": {
+        "archivePath": "/tmp/continuous-learning-e2e-fixed/home/.config/opencode/skills/.continuous-learning-archive/cl-e2e-build-1786672003973-8717addc"
+      }
+    },
+    {
+      "id": "2120b238-edf0-41cb-891e-ef57b6ee2637",
+      "at": "2026-08-14T01:47:55.874Z",
+      "kind": "memory",
+      "action": "add",
+      "label": "CL_E2E_20260814 项目的 CI 使用 GitHub Actions，测试命令是 bun test。",
+      "projectRoot": "/tmp/continuous-learning-e2e-fixed/project",
+      "sourceSessionID": "ses_0020bbec5ffe5vQ212eP8ZpfxP",
+      "metadata": {
+        "target": "project"
+      }
+    },
+    {
+      "id": "ccb1f522-5e6f-4d13-b86c-41bac7c18a9f",
+      "at": "2026-08-14T01:48:58.197Z",
+      "kind": "pending",
+      "action": "staged",
+      "label": "project 新增：CL_E2E_20260814 项目的生产部署平台是 Fly.io，配置文件为 fly.toml。",
+      "projectRoot": "/tmp/continuous-learning-e2e-fixed/project",
+      "sourceSessionID": "ses_0020ac43effegbIj4xBjiDaPpP",
+      "metadata": {
+        "pendingID": "d856a2b3618e",
+        "payloadKind": "memory"
+      }
+    },
+    {
+      "id": "99ce248c-e227-4ea6-ba5a-3020cc679113",
+      "at": "2026-08-14T01:49:23.561Z",
+      "kind": "pending",
+      "action": "approved",
+      "label": "project 新增：CL_E2E_20260814 项目的生产部署平台是 Fly.io，配置文件为 fly.toml。",
+      "projectRoot": "/tmp/continuous-learning-e2e-fixed/project",
+      "sourceSessionID": "ses_0020a6812ffed0paRpPDePxrZn",
+      "metadata": {
+        "pendingID": "d856a2b3618e",
+        "payloadKind": "memory"
+      }
+    }
+  ]
+}

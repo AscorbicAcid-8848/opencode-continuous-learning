@@ -1,0 +1,137 @@
+{
+  "info": {
+    "id": "ses_0054f8791ffe2twIyfB0nBgAaO",
+    "slug": "shiny-island",
+    "projectID": "global",
+    "directory": "/home/zzh/continuous-learning-e2e-project",
+    "path": "home/zzh/continuous-learning-e2e-project",
+    "title": "CL_E2E_20260813_model_probe",
+    "agent": "build",
+    "model": {
+      "id": "gpt-5.4-mini",
+      "providerID": "github-copilot",
+      "variant": "default"
+    },
+    "version": "1.18.18",
+    "summary": {
+      "additions": 0,
+      "deletions": 0,
+      "files": 0
+    },
+    "cost": 0,
+    "tokens": {
+      "input": 0,
+      "output": 0,
+      "reasoning": 0,
+      "cache": {
+        "read": 0,
+        "write": 0
+      }
+    },
+    "permission": [
+      {
+        "permission": "question",
+        "pattern": "*",
+        "action": "deny"
+      },
+      {
+        "permission": "plan_enter",
+        "pattern": "*",
+        "action": "deny"
+      },
+      {
+        "permission": "plan_exit",
+        "pattern": "*",
+        "action": "deny"
+      }
+    ],
+    "time": {
+      "created": 1786617297006,
+      "updated": 1786617298565
+    }
+  },
+  "messages": [
+    {
+      "info": {
+        "role": "user",
+        "time": {
+          "created": 1786617297031
+        },
+        "agent": "build",
+        "model": {
+          "providerID": "github-copilot",
+          "modelID": "gpt-5.4-mini"
+        },
+        "summary": {
+          "diffs": []
+        },
+        "id": "msg_ffab07887001ojuKixBlNO1pUc",
+        "sessionID": "ses_0054f8791ffe2twIyfB0nBgAaO"
+      },
+      "parts": [
+        {
+          "type": "text",
+          "text": "\"请只回复 CL_E2E_MODEL_OK，不要调用工具。\"",
+          "id": "prt_ffab0788b001CuDtvBajDrq8U9",
+          "sessionID": "ses_0054f8791ffe2twIyfB0nBgAaO",
+          "messageID": "msg_ffab07887001ojuKixBlNO1pUc"
+        }
+      ]
+    },
+    {
+      "info": {
+        "parentID": "msg_ffab07887001ojuKixBlNO1pUc",
+        "role": "assistant",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/home/zzh/continuous-learning-e2e-project",
+          "root": "/"
+        },
+        "cost": 0,
+        "tokens": {
+          "input": 0,
+          "output": 0,
+          "reasoning": 0,
+          "cache": {
+            "read": 0,
+            "write": 0
+          }
+        },
+        "modelID": "gpt-5.4-mini",
+        "providerID": "github-copilot",
+        "time": {
+          "created": 1786617298547,
+          "completed": 1786617299649
+        },
+        "error": {
+          "name": "APIError",
+          "data": {
+            "message": "Forbidden: unauthorized: not licensed to use Copilot",
+            "statusCode": 403,
+            "isRetryable": false,
+            "responseHeaders": {
+              "content-length": "42",
+              "content-security-policy": "default-src 'none'; sandbox",
+              "content-type": "text/plain; charset=utf-8",
+              "date": "Thu, 13 Aug 2026 10:34:59 GMT",
+              "strict-transport-security": "max-age=31536000",
+              "x-content-type-options": "nosniff",
+              "x-copilot-service-request-id": "4ce52c6b-7dbc-4ce4-a767-0ed4ad19ce19",
+              "x-github-backend": "Kubernetes",
+              "x-github-edge-region": "iad",
+              "x-github-request-id": "2288:35D3DD:21996B:27299B:6A7D9DD2"
+            },
+            "responseBody": "unauthorized: not licensed to use Copilot\n",
+            "metadata": {
+              "url": "https://api.githubcopilot.com/responses"
+            }
+          }
+        },
+        "id": "msg_ffab07e73001nAbfIRplZ56yC1",
+        "sessionID": "ses_0054f8791ffe2twIyfB0nBgAaO"
+      },
+      "parts": []
+    }
+  ]
+}

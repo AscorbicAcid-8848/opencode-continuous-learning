@@ -1,0 +1,4 @@
+[0m
+> build · gpt-5.6-terra
+[0m
+CL_E2E_20260814 项目的代码风格要求所有 TypeScript 文件通过 `tsc --noEmit` 类型检查。
