@@ -1,9 +1,28 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+#
+# opencode-continuous-learning — installer (Linux / macOS)
+#
+# This script is self-contained: it generates the plugin entry point and
+# package.json at install time, copies src/ as a unit, installs runtime
+# dependencies, and registers the TUI settings panel. No separate template
+# files are needed.
+#
+# Usage:
+#   bash ./scripts/install.sh [config_root]
+#
+# config_root defaults to ${XDG_CONFIG_HOME:-$HOME/.config}/opencode
+#
+
+readonly PLUGIN_ID="continuous-learning"
+
+# ── resolve paths ──────────────────────────────────────────────────────
+
 project_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 config_root="${1:-${XDG_CONFIG_HOME:-$HOME/.config}/opencode}"
 
+# safety: refuse to install outside an "opencode" config directory
 case "$config_root" in
   */opencode) ;;
   *)
@@ -12,82 +31,192 @@ case "$config_root" in
     ;;
 esac
 
-plugin_dir="$config_root/plugins"
-module_dir="$config_root/continuous-learning-plugin"
-command_dir="$config_root/commands"
-settings_dir="$config_root/continuous-learning"
+plugin_dir="$config_root/plugins"                         # OpenCode auto-scans this
+module_dir="$config_root/${PLUGIN_ID}-plugin"             # runtime source lives here
+command_dir="$config_root/commands"                       # slash commands
+settings_dir="$config_root/$PLUGIN_ID"                    # config + user manual
+data_dir="${XDG_DATA_HOME:-$HOME/.local/share}/opencode/$PLUGIN_ID"
 backup_dir="$settings_dir/install-backups/$(date +%Y%m%d-%H%M%S)"
 
-mkdir -p -- "$plugin_dir" "$module_dir" "$command_dir" "$settings_dir"
+# ── helpers ────────────────────────────────────────────────────────────
 
-copy_with_backup() {
-  source_path="$1"
-  destination_path="$2"
-  if [[ -e "$destination_path" ]]; then
-    relative_path="${destination_path#"$config_root"/}"
-    mkdir -p -- "$backup_dir/$(dirname -- "$relative_path")"
-    cp -p -- "$destination_path" "$backup_dir/$relative_path"
+log() { printf '%s\n' "$*"; }
+err() { printf 'Error: %s\n' "$*" >&2; }
+warn() { printf 'Warning: %s\n' "$*" >&2; }
+
+backup_existing() {
+  local dest="$1"
+  if [[ -e "$dest" ]]; then
+    local rel="${dest#"$config_root"/}"
+    mkdir -p -- "$backup_dir/$(dirname -- "$rel")"
+    cp -rp -- "$dest" "$backup_dir/$rel"
   fi
-  cp -- "$source_path" "$destination_path"
 }
 
-remove_with_backup() {
-  destination_path="$1"
-  if [[ ! -e "$destination_path" ]]; then
-    return
-  fi
-  relative_path="${destination_path#"$config_root"/}"
-  mkdir -p -- "$backup_dir/$(dirname -- "$relative_path")"
-  cp -p -- "$destination_path" "$backup_dir/$relative_path"
-  rm -f -- "$destination_path"
+copy_file() {
+  local src="$1" dest="$2"
+  backup_existing "$dest"
+  mkdir -p -- "$(dirname -- "$dest")"
+  cp -- "$src" "$dest"
 }
 
-copy_with_backup "$project_root/install/continuous-learning.ts" "$plugin_dir/continuous-learning.ts"
-copy_with_backup "$project_root/src/plugin.ts" "$module_dir/plugin.ts"
-copy_with_backup "$project_root/src/core.ts" "$module_dir/core.ts"
-copy_with_backup "$project_root/src/advanced.ts" "$module_dir/advanced.ts"
-copy_with_backup "$project_root/src/tui.ts" "$module_dir/tui.ts"
-copy_with_backup "$project_root/install/plugin-package.json" "$module_dir/package.json"
-copy_with_backup "$project_root/commands/learn.md" "$command_dir/learn.md"
-copy_with_backup "$project_root/commands/learn-review.md" "$command_dir/learn-review.md"
-remove_with_backup "$command_dir/learning-mode.md"
-copy_with_backup "$project_root/docs/用户手册.md" "$settings_dir/用户手册.md"
+copy_dir() {
+  local src="$1" dest="$2"
+  backup_existing "$dest"
+  rm -rf -- "$dest"
+  mkdir -p -- "$dest"
+  cp -R -- "$src/." "$dest/"
+}
+
+remove_legacy() {
+  local dest="$1"
+  if [[ -e "$dest" ]]; then
+    local rel="${dest#"$config_root"/}"
+    mkdir -p -- "$backup_dir/$(dirname -- "$rel")"
+    cp -rp -- "$dest" "$backup_dir/$rel"
+    rm -f -- "$dest"
+  fi
+}
+
+# ── pre-flight checks ─────────────────────────────────────────────────
+
+if [[ ! -d "$project_root/src" ]]; then
+  err "Source directory not found: $project_root/src"
+  exit 1
+fi
+
+for f in plugin.ts core.ts advanced.ts tui.ts; do
+  if [[ ! -f "$project_root/src/$f" ]]; then
+    err "Missing required source file: src/$f"
+    exit 1
+  fi
+done
+
+# ── create directories ────────────────────────────────────────────────
+
+mkdir -p -- "$plugin_dir" "$module_dir" "$command_dir" "$settings_dir" "$data_dir"
+
+# ── copy runtime source ───────────────────────────────────────────────
+
+log "Copying source files to $module_dir ..."
+copy_dir "$project_root/src" "$module_dir/src"
+
+# ── generate plugin entry point ───────────────────────────────────────
+#
+# The entry lives in plugins/ (auto-scanned by OpenCode). It imports the
+# server plugin from the sibling runtime directory and re-exports it.
+
+entry_file="$plugin_dir/${PLUGIN_ID}.ts"
+log "Generating plugin entry: $entry_file"
+cat > "$entry_file" <<'ENTRY'
+// Auto-generated by scripts/install.sh — do not edit manually.
+// This file lives in <config>/plugins/ so OpenCode auto-discovers it.
+// The runtime source is in the sibling <config>/continuous-learning-plugin/src/.
+import plugin from "../continuous-learning-plugin/src/plugin.ts";
+export default plugin;
+ENTRY
+
+# ── generate package.json ─────────────────────────────────────────────
+
+pkg_file="$module_dir/package.json"
+log "Generating package.json: $pkg_file"
+cat > "$pkg_file" <<'PKG'
+{
+  "name": "opencode-continuous-learning-local",
+  "version": "0.5.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "opencode": ">=1.18.15"
+  },
+  "dependencies": {
+    "@honcho-ai/sdk": "2.2.0"
+  },
+  "peerDependencies": {
+    "@opencode-ai/plugin": "1.18.15"
+  },
+  "peerDependenciesMeta": {
+    "@opencode-ai/plugin": {
+      "optional": false
+    }
+  },
+  "exports": {
+    ".": "./src/plugin.ts",
+    "./tui": "./src/tui.ts"
+  }
+}
+PKG
+
+# ── copy commands ─────────────────────────────────────────────────────
+
+log "Installing slash commands ..."
+copy_file "$project_root/commands/learn.md" "$command_dir/learn.md"
+copy_file "$project_root/commands/learn-review.md" "$command_dir/learn-review.md"
+remove_legacy "$command_dir/learning-mode.md"
+
+# ── copy user manual ──────────────────────────────────────────────────
+
+copy_file "$project_root/docs/用户手册.md" "$settings_dir/用户手册.md"
+
+# ── create default config (first install only) ────────────────────────
 
 settings_path="$settings_dir/config.json"
 if [[ ! -e "$settings_path" ]]; then
+  log "Creating default config: $settings_path"
   cp -- "$project_root/config/default.json" "$settings_path"
+else
+  log "Config already exists, preserving: $settings_path"
 fi
+
+# ── check OpenCode plugin SDK ─────────────────────────────────────────
 
 if [[ ! -f "$config_root/node_modules/@opencode-ai/plugin/package.json" ]]; then
-  printf 'Warning: @opencode-ai/plugin is not installed under %s.\n' "$config_root" >&2
+  warn "@opencode-ai/plugin is not installed under $config_root."
+  warn "The plugin will fail to load until OpenCode's own dependencies are present."
 fi
 
+# ── install runtime dependencies ──────────────────────────────────────
+
+log "Installing runtime dependencies in $module_dir ..."
 if command -v bun >/dev/null 2>&1; then
   (cd -- "$module_dir" && bun install --production --ignore-scripts)
 elif command -v npm >/dev/null 2>&1; then
   npm install --prefix "$module_dir" --omit=dev --ignore-scripts --no-audit --no-fund
 else
-  printf 'Warning: bun/npm was not found; Honcho provider support was not installed.\n' >&2
+  warn "bun/npm was not found; Honcho provider support was not installed."
 fi
 
+# ── register TUI settings panel ───────────────────────────────────────
+
 if ! command -v opencode >/dev/null 2>&1; then
-  printf 'OpenCode executable was not found; unable to register the TUI settings panel.\n' >&2
+  err "OpenCode executable was not found; unable to register the TUI settings panel."
+  err "Install OpenCode first, then re-run this script."
   exit 1
 fi
 
+# back up existing TUI configs before registration modifies them
 for tui_config in "$config_root/tui.json" "$config_root/tui.jsonc"; do
   if [[ -e "$tui_config" ]]; then
-    relative_path="${tui_config#"$config_root"/}"
-    mkdir -p -- "$backup_dir/$(dirname -- "$relative_path")"
-    cp -p -- "$tui_config" "$backup_dir/$relative_path"
+    rel="${tui_config#"$config_root"/}"
+    mkdir -p -- "$backup_dir/$(dirname -- "$rel")"
+    cp -p -- "$tui_config" "$backup_dir/$rel"
   fi
 done
 
+log "Registering TUI settings panel ..."
 XDG_CONFIG_HOME="${config_root%/opencode}" opencode plugin "$module_dir" --global --force
 
-printf 'Installed plugin entry: %s\n' "$plugin_dir/continuous-learning.ts"
-printf 'Installed settings panel: /learning-settings (also available in the command palette)\n'
-printf 'Installed commands: %s, %s\n' "$command_dir/learn.md" "$command_dir/learn-review.md"
-printf 'Settings: %s\n' "$settings_path"
-printf 'User manual: %s\n' "$settings_dir/用户手册.md"
-printf 'Restart OpenCode before using /learning-settings, /learning-pending, /learning-journey, /learn, or /learn-review.\n'
+# ── summary ───────────────────────────────────────────────────────────
+
+log ""
+log "=== Installation complete ==="
+log "Plugin entry:  $entry_file"
+log "Runtime:       $module_dir/src/"
+log "Commands:      $command_dir/learn.md, $command_dir/learn-review.md"
+log "Config:        $settings_path"
+log "Data:          $data_dir"
+log "User manual:   $settings_dir/用户手册.md"
+log "Backups:       $backup_dir"
+log ""
+log "Restart OpenCode before using /learning-settings, /learning-pending,"
+log "/learning-journey, /learn, or /learn-review."

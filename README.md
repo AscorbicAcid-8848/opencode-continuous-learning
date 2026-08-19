@@ -74,12 +74,14 @@ powershell -ExecutionPolicy Bypass -File .\scripts\install.ps1
 
 安装脚本会：
 
-1. 把服务端插件和 TUI 设置面板复制到 OpenCode 全局配置目录；
-2. 安装 `/learn` 和 `/learn-review` 命令；
-3. 注册 `/learning-settings` 原生设置面板，同时保留已有 TUI 插件；
-4. 安装可选 Honcho Provider 所需的官方 TypeScript SDK；
-5. 首次安装时创建默认配置，升级时保留现有配置；
-6. 备份即将被替换的文件，并清理旧版 `/learning-mode` 命令。
+1. 把 `src/` 整体复制到 OpenCode 全局配置目录下的 `continuous-learning-plugin/src/`；
+2. 生成插件入口 `plugins/continuous-learning.ts`（从运行时目录导入并导出服务端插件）；
+3. 生成 `continuous-learning-plugin/package.json`（声明依赖和导出映射）；
+4. 安装 `/learn` 和 `/learn-review` 命令；
+5. 注册 `/learning-settings` 原生设置面板，同时保留已有 TUI 插件；
+6. 安装可选 Honcho Provider 所需的官方 TypeScript SDK；
+7. 首次安装时创建默认配置，升级时保留现有配置；
+8. 备份即将被替换的文件，并清理旧版 `/learning-mode` 命令。
 
 设置面板要求 OpenCode 1.18.15 或更高版本。安装完成后完全退出并重新启动 OpenCode。
 
@@ -298,9 +300,6 @@ opencode-continuous-learning/
 │   ├── learn.md                   # 主动学习命令模板
 │   └── learn-review.md            # 立即复盘命令模板
 ├── config/default.json            # 新安装默认配置
-├── install/
-│   ├── continuous-learning.ts     # 部署后的 OpenCode 插件入口
-│   └── plugin-package.json        # 本地 TUI 插件清单
 ├── scripts/
 │   ├── install.sh                 # Linux / macOS 安装脚本
 │   └── install.ps1                # Windows 安装脚本
@@ -313,7 +312,7 @@ opencode-continuous-learning/
 └── tsconfig.json
 ```
 
-`src/` 是运行实现的唯一源码。安装脚本负责把服务端入口、运行模块、TUI 面板、命令和用户手册部署到 OpenCode 全局配置目录，不会把测试或开发依赖复制进去。
+`src/` 是运行实现的唯一源码。安装脚本在安装时自动生成插件入口和 `package.json`，把 `src/` 整体部署到 OpenCode 全局配置目录，不会把测试或开发依赖复制进去。
 
 ## 能力边界
 
