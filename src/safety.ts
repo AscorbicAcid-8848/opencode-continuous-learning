@@ -1,4 +1,4 @@
-import type { MemoryTarget } from "../config/schema.ts";
+import type { MemoryTarget } from "./config.ts";
 
 const MEMORY_HEADERS: Record<MemoryTarget, string> = {
   memory: "# Persistent Memory",

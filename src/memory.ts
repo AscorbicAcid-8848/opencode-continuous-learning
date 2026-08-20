@@ -1,22 +1,17 @@
-import { readFile } from "node:fs/promises";
+import { lstat, mkdir, readFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
-import { lstat, mkdir, readdir, rename, rmdir } from "node:fs/promises";
-import { randomUUID } from "node:crypto";
 
-import { type LearningConfig, type MemoryTarget } from "../config/schema.ts";
-import { projectStorageName } from "../config/paths.ts";
 import {
-  atomicWriteText,
-  createTextExclusive,
-  readJSON,
-} from "../shared/file-io.ts";
-import { withStorageLock } from "../shared/lock.ts";
-import { nowISO } from "../shared/utils.ts";
+  type LearningConfig,
+  type MemoryTarget,
+  projectStorageName,
+} from "./config.ts";
+import { atomicWriteText, withStorageLock } from "./shared.ts";
 import {
   assertSafePersistentText,
+  MEMORY_HEADERS,
   normalizeOneLine,
-} from "../safety/text-guard.ts";
-import { parseMemory, renderMemory } from "./render.ts";
+} from "./safety.ts";
 
 function pathsOverlap(left: string, right: string): boolean {
   const relation = relative(left, right);
@@ -38,6 +33,39 @@ async function assertPlainDirectory(
       `${label} must be a real directory, not a symlink or junction: ${path}`,
     );
   }
+}
+
+export function renderMemory(target: MemoryTarget, entries: string[]): string {
+  const body = entries
+    .map((entry) => `- ${normalizeOneLine(entry)}`)
+    .join("\n");
+  return `${MEMORY_HEADERS[target]}\n\n<!-- Managed by opencode-continuous-learning. One durable fact per line. -->\n${body}${body ? "\n" : ""}`;
+}
+
+export function parseMemory(raw: string, target: MemoryTarget): string[] {
+  const lines = raw.replace(/\r\n/gu, "\n").split("\n");
+  if (lines[0] !== MEMORY_HEADERS[target]) {
+    throw new Error(
+      `${target} file is not in the managed format; refusing to overwrite it`,
+    );
+  }
+  const entries: string[] = [];
+  for (const line of lines.slice(1)) {
+    if (
+      !line ||
+      line ===
+        "<!-- Managed by opencode-continuous-learning. One durable fact per line. -->"
+    ) {
+      continue;
+    }
+    if (!line.startsWith("- ") || !line.slice(2).trim()) {
+      throw new Error(
+        `${target} file contains unmanaged content; refusing to overwrite it`,
+      );
+    }
+    entries.push(line.slice(2).trim());
+  }
+  return entries;
 }
 
 export interface MemoryPaths {
@@ -209,15 +237,3 @@ export class MemoryStore implements MemoryPaths {
     await atomicWriteText(this.memoryFile(target), rendered);
   }
 }
-
-// Re-export for backward compatibility with LearningStore consumers
-export {
-  atomicWriteText,
-  createTextExclusive,
-  readJSON,
-  withStorageLock,
-  nowISO,
-};
-export { assertSafePersistentText, normalizeOneLine };
-export { pathsOverlap, assertPlainDirectory };
-export { randomUUID, readdir, rename, rmdir };

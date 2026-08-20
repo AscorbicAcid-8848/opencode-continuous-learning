@@ -1,8 +1,8 @@
 import {
   type ExternalMemoryProviderName,
   type LearningConfig,
-} from "../config/schema.ts";
-import type { UnknownRecord } from "../shared/types.ts";
+} from "./config.ts";
+import type { UnknownRecord } from "./shared.ts";
 
 type ExternalResult = {
   provider: ExternalMemoryProviderName;

@@ -2,15 +2,15 @@ import {
   type LearningConfig,
   type MemoryTarget,
   type SkillOwner,
-} from "./config/schema.ts";
-import { MemoryStore } from "./memory/store.ts";
-import { SkillStore } from "./skill/store.ts";
+} from "./config.ts";
+import { MemoryStore } from "./memory.ts";
+import { SkillStore } from "./skill.ts";
 import {
   type ReviewCheckpoint,
   type ReviewState,
   ReviewStateStore,
-} from "./review/state.ts";
-import { type SkillProvenance, type SkillSummary } from "./skill/provenance.ts";
+} from "./review.ts";
+import { type SkillProvenance, type SkillSummary } from "./skill.ts";
 
 /**
  * Facade that aggregates MemoryStore, SkillStore, and ReviewStateStore

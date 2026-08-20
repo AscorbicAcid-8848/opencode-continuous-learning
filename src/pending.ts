@@ -2,8 +2,57 @@ import { mkdir, readFile, readdir, rename, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 
-import { atomicWriteText } from "../shared/file-io.ts";
-import { type PendingRecord, validPending } from "./types.ts";
+import {
+  type LearningConfig,
+  type MemoryTarget,
+  type SkillOwner,
+} from "./config.ts";
+import { atomicWriteText } from "./shared.ts";
+import { MemoryStore } from "./memory.ts";
+import { SkillStore } from "./skill.ts";
+
+export type PendingPayload =
+  | {
+      kind: "memory";
+      action: "add" | "replace" | "remove";
+      target: MemoryTarget;
+      content?: string;
+      oldText?: string;
+    }
+  | {
+      kind: "skill";
+      action: "create" | "update" | "delete";
+      name: string;
+      description?: string;
+      content?: string;
+      owner: SkillOwner;
+      sourceSessionID?: string;
+      absorbedInto?: string;
+    };
+
+export interface PendingRecord {
+  schemaVersion: 1;
+  id: string;
+  summary: string;
+  origin: "background_review";
+  projectRoot: string;
+  createdAt: string;
+  payload: PendingPayload;
+}
+
+export function validPending(value: unknown): value is PendingRecord {
+  if (!value || typeof value !== "object") return false;
+  const item = value as Record<string, unknown>;
+  return (
+    item.schemaVersion === 1 &&
+    typeof item.id === "string" &&
+    typeof item.summary === "string" &&
+    item.origin === "background_review" &&
+    typeof item.projectRoot === "string" &&
+    typeof item.createdAt === "string" &&
+    Boolean(item.payload && typeof item.payload === "object")
+  );
+}
 
 export class PendingWriteStore {
   readonly root: string;
@@ -110,4 +159,60 @@ export class PendingWriteStore {
   private recordPath(id: string): string {
     return join(this.root, `${id}.json`);
   }
+}
+
+export async function applyPendingRecord(
+  record: PendingRecord,
+  input: { dataRoot: string; skillsRoot: string; config: LearningConfig },
+): Promise<unknown> {
+  if (!input.config.enabled) throw new Error("Continuous learning is disabled");
+  const memoryStore = new MemoryStore(
+    input.dataRoot,
+    input.config,
+    record.projectRoot,
+  );
+  await memoryStore.ensureLayout();
+  const skillStore = new SkillStore(
+    input.dataRoot,
+    input.skillsRoot,
+    input.config,
+  );
+  await skillStore.ensureLayout();
+  const payload = record.payload;
+  if (payload.kind === "memory") {
+    if (payload.action === "add")
+      return memoryStore.addMemory(payload.target, payload.content ?? "");
+    if (payload.action === "replace") {
+      return memoryStore.replaceMemory(
+        payload.target,
+        payload.oldText ?? "",
+        payload.content ?? "",
+      );
+    }
+    return memoryStore.removeMemory(payload.target, payload.oldText ?? "");
+  }
+  if (payload.action === "create") {
+    return skillStore.createSkill({
+      name: payload.name,
+      description: payload.description ?? "",
+      content: payload.content ?? "",
+      owner: payload.owner,
+      sourceSessionID: payload.sourceSessionID,
+    });
+  }
+  if (payload.action === "update") {
+    return skillStore.updateSkill({
+      name: payload.name,
+      description: payload.description ?? "",
+      content: payload.content ?? "",
+      origin: payload.owner,
+      sourceSessionID: payload.sourceSessionID,
+    });
+  }
+  return skillStore.deleteSkill({
+    name: payload.name,
+    origin: payload.owner,
+    sourceSessionID: payload.sourceSessionID,
+    absorbedInto: payload.absorbedInto,
+  });
 }

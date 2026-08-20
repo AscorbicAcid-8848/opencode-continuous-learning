@@ -1,9 +1,124 @@
-import { mkdir, open, readFile, rm } from "node:fs/promises";
-import { hostname } from "node:os";
-import { join } from "node:path";
-import { randomUUID } from "node:crypto";
+import { mkdir, open, readFile, rename, rm } from "node:fs/promises";
+import { dirname, join } from "node:path";
+import { randomUUID, createHash } from "node:crypto";
+import { homedir, hostname } from "node:os";
 
-import { sleep } from "./utils.ts";
+export type UnknownRecord = Record<string, unknown>;
+
+// ── general utilities ─────────────────────────────────────────────────
+
+export function resolveOption(
+  options: UnknownRecord | undefined,
+  optionName: string,
+  fallback: string,
+): string {
+  const value = options?.[optionName];
+  return typeof value === "string" && value.trim() ? value : fallback;
+}
+
+export function errorText(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return String(error);
+  }
+}
+
+export function requireText(value: string | undefined, field: string): string {
+  if (!value?.trim()) throw new Error(`${field} is required for this action`);
+  return value.trim();
+}
+
+export async function sleep(milliseconds: number): Promise<void> {
+  await new Promise<void>((resolve) => setTimeout(resolve, milliseconds));
+}
+
+export function truncate(value: string, limit: number): string {
+  return value.length <= limit
+    ? value
+    : `${value.slice(0, Math.max(0, limit - 3))}...`;
+}
+
+export function defaultDataRoot(): string {
+  return join(homedir(), ".local", "share", "opencode", "continuous-learning");
+}
+
+export function nowISO(): string {
+  return new Date().toISOString();
+}
+
+// ── atomic file I/O ───────────────────────────────────────────────────
+
+const MAX_RENAME_RETRIES = 5;
+const RENAME_RETRY_BASE_DELAY_MS = 25;
+const RETRYABLE_ERRNO_CODES = ["EACCES", "EBUSY", "EPERM"] as const;
+
+export async function atomicWriteText(
+  path: string,
+  content: string,
+): Promise<void> {
+  await mkdir(dirname(path), { recursive: true });
+  const temporary = join(
+    dirname(path),
+    `.${randomUUID()}.${path.split(/[\\/]/).at(-1)}.tmp`,
+  );
+  let handle: Awaited<ReturnType<typeof open>> | undefined;
+  try {
+    handle = await open(temporary, "wx");
+    await handle.writeFile(content, "utf8");
+    await handle.sync();
+    await handle.close();
+    handle = undefined;
+    for (let attempt = 0; ; attempt += 1) {
+      try {
+        await rename(temporary, path);
+        break;
+      } catch (error) {
+        const code = (error as NodeJS.ErrnoException).code;
+        if (
+          attempt >= MAX_RENAME_RETRIES ||
+          !RETRYABLE_ERRNO_CODES.includes(code as never)
+        )
+          throw error;
+        await sleep(RENAME_RETRY_BASE_DELAY_MS * (attempt + 1));
+      }
+    }
+  } finally {
+    await handle?.close().catch(() => undefined);
+    await rm(temporary, { force: true }).catch(() => undefined);
+  }
+}
+
+export async function createTextExclusive(
+  path: string,
+  content: string,
+): Promise<void> {
+  let handle: Awaited<ReturnType<typeof open>> | undefined;
+  let created = false;
+  try {
+    handle = await open(path, "wx");
+    created = true;
+    await handle.writeFile(content, "utf8");
+    await handle.sync();
+  } catch (error) {
+    if (created) await rm(path, { force: true }).catch(() => undefined);
+    throw error;
+  } finally {
+    await handle?.close().catch(() => undefined);
+  }
+}
+
+export async function readJSON<T>(path: string, fallback: T): Promise<T> {
+  try {
+    return JSON.parse(await readFile(path, "utf8")) as T;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return fallback;
+    throw error;
+  }
+}
+
+// ── cross-process file lock ──────────────────────────────────────────
 
 interface StorageLockInfo {
   owner: string;
@@ -164,3 +279,6 @@ export async function withStorageLock<T>(
     }
   }
 }
+
+// re-export for convenience (used by config/paths.ts)
+export { createHash };
