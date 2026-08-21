@@ -11,25 +11,26 @@ import type {
 import {
   CONFIG_FIELD_KEYS,
   CONFIG_FIELD_SPECS,
-  LearningStore,
+  type LearningConfig,
+  type LearningConfigKey,
+  type MemoryTarget,
+  type SkillOwner,
   defaultDataRoot,
   loadConfig,
   pruneRetiredConfigFields,
   resetConfig,
   updateConfig,
   validateConfigValue,
-  type LearningConfig,
-  type LearningConfigKey,
-  type MemoryTarget,
-  type SkillSummary,
-} from "./core.ts";
+} from "./config.ts";
+import { ExternalMemoryAdapter } from "./external.ts";
+import { LearningJourneyStore } from "./journey.ts";
 import {
-  ExternalMemoryAdapter,
-  LearningJourneyStore,
-  PendingWriteStore,
   applyPendingRecord,
+  PendingWriteStore,
   type PendingRecord,
-} from "./advanced.ts";
+} from "./pending.ts";
+import { type SkillSummary } from "./skill.ts";
+import { LearningStore } from "./store.ts";
 
 type UnknownRecord = Record<string, unknown>;
 

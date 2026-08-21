@@ -11,8 +11,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { DEFAULT_CONFIG, LearningStore } from "../src/core.ts";
-import { PendingWriteStore } from "../src/advanced.ts";
+import { DEFAULT_CONFIG } from "../src/config.ts";
+import { PendingWriteStore } from "../src/pending.ts";
+import { LearningStore } from "../src/store.ts";
 import { showPanel, default as tuiModule } from "../src/tui.ts";
 
 type UnknownRecord = Record<string, unknown>;

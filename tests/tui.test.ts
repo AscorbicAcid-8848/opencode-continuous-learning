@@ -3,9 +3,9 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-
-import { DEFAULT_CONFIG } from "../src/core.ts";
-import { LearningJourneyStore, PendingWriteStore } from "../src/advanced.ts";
+import { DEFAULT_CONFIG } from "../src/config.ts";
+import { LearningJourneyStore } from "../src/journey.ts";
+import { PendingWriteStore } from "../src/pending.ts";
 import tuiModule from "../src/tui.ts";
 
 type UnknownRecord = Record<string, unknown>;
