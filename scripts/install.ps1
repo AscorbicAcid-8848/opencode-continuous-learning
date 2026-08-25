@@ -48,9 +48,16 @@ function Log([string]$Message) { Write-Output $Message }
 function Warn([string]$Message) { Write-Warning $Message }
 function Fail([string]$Message) { throw $Message }
 
+function Get-RelativePath([string]$Base, [string]$Full) {
+    if ($Full.StartsWith($Base, [System.StringComparison]::OrdinalIgnoreCase)) {
+        return $Full.Substring($Base.Length).TrimStart('\', '/')
+    }
+    return (Split-Path -Leaf $Full)
+}
+
 function Backup-Existing([string]$Path) {
     if (Test-Path -LiteralPath $Path) {
-        $relative = [System.IO.Path]::GetRelativePath($resolvedConfigRoot, $Path)
+        $relative = Get-RelativePath $resolvedConfigRoot $Path
         $backup = Join-Path $backupDirectory $relative
         $backupParent = Split-Path -Parent $backup
         if (-not (Test-Path -LiteralPath $backupParent)) {
@@ -80,7 +87,7 @@ function Copy-Dir([string]$Source, [string]$Destination) {
 
 function Remove-Legacy([string]$Path) {
     if (Test-Path -LiteralPath $Path) {
-        $relative = [System.IO.Path]::GetRelativePath($resolvedConfigRoot, $Path)
+        $relative = Get-RelativePath $resolvedConfigRoot $Path
         $backup = Join-Path $backupDirectory $relative
         $backupParent = Split-Path -Parent $backup
         if (-not (Test-Path -LiteralPath $backupParent)) {
@@ -98,7 +105,7 @@ if (-not (Test-Path -LiteralPath $srcDirectory)) {
     Fail "Source directory not found: $srcDirectory"
 }
 
-foreach ($f in @('plugin.ts', 'core.ts', 'advanced.ts', 'tui.ts')) {
+foreach ($f in @('plugin.ts', 'tui.ts', 'shared.ts', 'config.ts', 'store.ts')) {
     $srcFile = Join-Path $srcDirectory $f
     if (-not (Test-Path -LiteralPath $srcFile)) {
         Fail "Missing required source file: src/$f"
@@ -129,7 +136,8 @@ $entryContent = @"
 import plugin from "../continuous-learning-plugin/src/plugin.ts";
 export default plugin;
 "@
-Set-Content -LiteralPath $entryFile -Value $entryContent -Encoding UTF8 -NoNewline:$false
+$utf8NoBom = (New-Object System.Text.UTF8Encoding $false)
+[System.IO.File]::WriteAllText($entryFile, $entryContent, $utf8NoBom)
 
 # ── generate package.json ─────────────────────────────────────────────
 
@@ -161,7 +169,7 @@ $pkgContent = @"
   }
 }
 "@
-Set-Content -LiteralPath $pkgFile -Value $pkgContent -Encoding UTF8 -NoNewline:$false
+[System.IO.File]::WriteAllText($pkgFile, $pkgContent, $utf8NoBom)
 
 # ── copy commands ─────────────────────────────────────────────────────
 

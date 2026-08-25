@@ -85,7 +85,7 @@ if [[ ! -d "$project_root/src" ]]; then
   exit 1
 fi
 
-for f in plugin.ts core.ts advanced.ts tui.ts; do
+for f in plugin.ts tui.ts shared.ts config.ts store.ts; do
   if [[ ! -f "$project_root/src/$f" ]]; then
     err "Missing required source file: src/$f"
     exit 1
